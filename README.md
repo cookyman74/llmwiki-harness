@@ -574,6 +574,24 @@ raw 파일 맨 위 스탬프(`ingest_status: done`)를 읽어 인제스트 완�
 - **Marp 플러그인** — 위키 내용에서 슬라이드 덱 직접 생성.
 - **git** — 위키는 결국 markdown git 레포. 버전 이력·브랜치·협업 무료.
 
+### 템플릿 (회의록·오늘의 노트)
+
+`templates/`에 두 템플릿이 있다. Obsidian 코어 플러그인으로 연결한다.
+
+**회의록 — `templates/meeting.md` → `raw/meetings/`**
+- 성격: 회의는 **구두 소스**(`source_kind: verbal`) — 인제스트 시 신뢰도 −0.1.
+- 섹션: 안건 / 논의·결정 / 액션. frontmatter=메타(date·attendees), 본문=내용, 파일명=제목(중복 없음).
+- 연결: 설정 → 코어 플러그인 **Templates** 켜기 → 템플릿 폴더 `templates` → 새 노트에서 `Cmd+P` → "Insert template" → meeting.
+- 흐름: 회의 중 기록 → `raw/meetings/`에 저장 → "인제스트해줘" → 결정·액션이 위키에 통합(`ingest-status`가 자동으로 pending 감지).
+
+**오늘의 노트 — `templates/daily.md` → `raw/notes/`**
+- 성격: 개인 **스크래치**(할 일·배운 것). 지식이 아니라 타임라인 → 인제스트해도 **L2-episodic 기록만**, L3 개념 생성 안 함.
+- 섹션: 할 일 / 한 일·배운 것 / 메모. 파일명=날짜.
+- 연결: 설정 → 코어 플러그인 **Daily notes** 켜기 → New file location `raw/notes` · Template file location `templates/daily` · Date format `YYYY-MM-DD` → 달력 아이콘/"Open today".
+- 주의: `raw/notes/`는 인제스트 pending 스캔에서 **제외**돼 있다(매일 노트가 알림을 시끄럽게 안 만들게). 특정 날 노트를 위키에 넣고 싶으면 수동 인제스트.
+
+> **동적 템플릿**: 날짜 자동·참석자 입력이 필요하면 **Templater** 커뮤니티 플러그인. `{{date}}` → `<% tp.date.now("YYYY-MM-DD") %>`, 입력받기 `<% tp.system.prompt("제목") %>`. 폴더 템플릿으로 `raw/meetings/`·`raw/notes/`에 새 노트 만들 때 자동 적용도 가능.
+
 ---
 
 ## 11. 하네스 진화·확장
