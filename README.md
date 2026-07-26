@@ -1,5 +1,9 @@
 # LLM Wiki — Obsidian 볼트를 LLM이 유지보수하는 지식 베이스로 운영하기
 
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+[![Obsidian](https://img.shields.io/badge/Obsidian-vault-7c3aed?logo=obsidian&logoColor=white)](https://obsidian.md)
+[![Claude Code](https://img.shields.io/badge/Claude%20Code-harness-d97757)](https://claude.ai/code)
+
 > Obsidian을 IDE로, LLM을 프로그래머로, 위키를 코드베이스로. 사용자는 소스를 큐레이션하고 질문하고, LLM이 요약·교차참조·정리·부기(bookkeeping)를 전부 한다.
 
 **👉 처음이라면 [INTRO.md](INTRO.md) 부터 — 이게 뭐고 왜 쓰는지 3분 소개.**
