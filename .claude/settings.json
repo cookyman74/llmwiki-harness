@@ -1,0 +1,27 @@
+{
+  "hooks": {
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash .claude/skills/wiki-lint/scripts/wiki-status-check.sh 2>/dev/null || echo '{}'",
+            "statusMessage": "위키 상태 점검"
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "Write|Edit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "jq -r '.tool_input.file_path // .tool_response.filePath' | { read -r f; case \"$f\" in *.md) d=$(date +%F); awk -v d=\"$d\" '!done && /^updated:/ {sub(/^updated:.*/, \"updated: \" d); done=1} {print}' \"$f\" > \"$f.tmp\" && mv \"$f.tmp\" \"$f\";; esac; } 2>/dev/null || true",
+            "statusMessage": "Stamping updated: date"
+          }
+        ]
+      }
+    ]
+  }
+}

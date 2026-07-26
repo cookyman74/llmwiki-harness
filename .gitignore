@@ -1,0 +1,26 @@
+# === LLM Wiki: 하네스만 공유, 콘텐츠·개인정보 제외 ===
+# 원본 소스 (회의록·강의노트·노트 전부)
+raw/**
+!raw/**/.gitkeep
+# 위키 페이지 (인제스트 생성물)
+wiki/L1-working/**
+wiki/L2-episodic/**
+wiki/L3-semantic/**
+wiki/L4-procedural/**
+!wiki/**/.gitkeep
+# 주제 MoC (콘텐츠) — 빈 시드는 templates/seeds/home-moc.md 로 배포
+wiki/moc/**
+!wiki/moc/.gitkeep
+# 색인·로그·비용 데이터 (콘텐츠·소스명 노출) — 빈 시드는 templates/seeds/ 로 배포
+/index.md
+/log.md
+metrics/ingest-cost.csv
+# 개인/로컬
+CLAUDE.local.md
+.claude/settings.local.json
+# Obsidian 개인 설정·워크스페이스 상태
+.obsidian/
+# 시스템
+.DS_Store
+**/__pycache__/**
+*.pyc
