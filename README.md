@@ -2,6 +2,8 @@
 
 > Obsidian을 IDE로, LLM을 프로그래머로, 위키를 코드베이스로. 사용자는 소스를 큐레이션하고 질문하고, LLM이 요약·교차참조·정리·부기(bookkeeping)를 전부 한다.
 
+**👉 처음이라면 [INTRO.md](INTRO.md) 부터 — 이게 뭐고 왜 쓰는지 3분 소개.**
+
 이 문서 하나만 따라 하면 **빈 Obsidian 볼트**에서 시작해 **자기 유지보수(self-maintaining) LLM 위키 하네스**를 그대로 재현할 수 있다.
 
 - **대상 도구:** [Claude Code](https://claude.ai/code) (CLI/데스크톱/IDE)
