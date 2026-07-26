@@ -6,7 +6,7 @@
 
 - **대상 도구:** [Claude Code](https://claude.ai/code) (CLI/데스크톱/IDE)
 - **언어:** 노트 본문 한국어 / 파일명 영문 kebab-case
-- **버전:** v2 (통합 계층 기억) — v1(평평 구조)에서 업그레이드됨
+- **버전:** v2.1 (통합 계층 기억 + lazy 인제스트·모델 라우팅) — v1(평평 구조) → v2(4계층·신뢰도·망각) → v2.1(비용 최적화)
 
 ---
 
@@ -54,7 +54,7 @@
 
 | 계층 | 위치 | 소유 | 규칙 |
 |------|------|------|------|
-| **Raw sources** | `raw/` | 사용자 | **immutable** — LLM은 읽기만, 절대 수정 금지. 진실의 원천. |
+| **Raw sources** | `raw/` | 사용자 | **본문 immutable** — 내용 수정 금지, 진실의 원천. 단 인제스트 완료 스탬프(`ingested`/`wiki_source`/`ingest_status`)는 맨 위 메타 블록만 예외(본문 무변경). |
 | **The wiki** | `wiki/` | LLM | LLM이 전부 생성·유지. 사용자는 읽기만. |
 | **The schema** | `CLAUDE.md` | 공동 | 구조·규약·워크플로우의 정본. 함께 진화. |
 
@@ -96,39 +96,51 @@ raw/  ──▶  L1-working  ──▶  L2-episodic  ──▶  L3-semantic  ─
 ```
 llmwiki.obsidian/
 ├── CLAUDE.md                  # ★ 스키마 — 매 세션 로딩되는 정본 (규약·신뢰도·망각·관계 규칙)
+├── CLAUDE.local.md            # 개인 프로필 (gitignore — 공유 안 됨)
 ├── README.md                  # 이 문서
 ├── index.md                   # 전수 카탈로그 (자동 갱신)
 ├── log.md                     # 시간순 append-only 로그
 │
-├── raw/                       # 원본 소스 (immutable)
-│   └── assets/                # 다운로드한 이미지
+├── raw/                       # 원본 소스 (본문 immutable, 인제스트 스탬프만 예외)
+│   ├── assets/                # 다운로드한 이미지
+│   ├── meetings/              # 회의록 (verbal 소스)
+│   ├── notes/                 # 데일리 노트 (스크래치 — pending 스캔 제외)
+│   └── ...                    # 자유 분류 (lecture/·article/·books/ 등)
 │
 ├── wiki/                      # LLM 소유 — 4계층 기억
 │   ├── L1-working/            # 세션 스크래치 (종료 시 비움)
 │   ├── L2-episodic/           # session-*.md, source-*.md
 │   ├── L3-semantic/           # fact-*.md, entity-*.md, concept-*.md (신뢰도)
 │   ├── L4-procedural/         # procedure-*.md (steps)
-│   └── moc/                   # 네비게이션 지도
-│       └── home-moc.md        # 현관 허브
+│   └── moc/                   # 네비게이션 지도 (home-moc.md 현관 + {topic}-moc.md)
+│
+├── templates/                 # Obsidian 템플릿
+│   ├── meeting.md             # 회의록 (→ raw/meetings/)
+│   ├── daily.md               # 오늘의 노트 (→ raw/notes/)
+│   └── seeds/                 # 빈 시드 (index·log·home-moc — 배포본 초기화용)
+│
+├── metrics/                   # 비용대비효과 측정
+│   ├── ingest-cost.csv        # 문서당 토큰·페이지·모델 원장 (gitignore)
+│   └── cost-report.py         # 모델가중 비용 리포트
 │
 └── .claude/                   # 하네스
     ├── settings.json          # 훅 (SessionStart 자동 점검 + PostToolUse updated 스탬프)
-    ├── agents/                # 전문가 정의 (누가)
-    │   ├── wiki-ingestor.md
+    ├── agents/                # 전문가 정의 (누가) — 5개
+    │   ├── wiki-ingestor.md        (model: sonnet)
     │   ├── wiki-synthesizer.md
     │   ├── wiki-linter.md
     │   ├── wiki-cartographer.md
     │   └── wiki-consolidator.md
     └── skills/                # 워크플로우 정의 (어떻게)
         ├── wiki-ops/          # ★ 오케스트레이터 (진입점)
-        │   └── SKILL.md
-        ├── wiki-ingest/       # 인제스트 절차
+        ├── wiki-ingest/       # 인제스트 절차 (lazy)
+        │   └── scripts/       # concept-index.sh
         ├── wiki-query/        # 질의 절차
         ├── wiki-lint/         # 점검 절차
-        │   └── scripts/       # link-audit.py, decay.py, lint-due.sh,
-        │                      # search.sh, wiki-status-check.sh
+        │   └── scripts/       # link-audit.py, decay.py, lint-due.sh, search.sh,
+        │                      # ingest-status.sh, wiki-status-check.sh
         ├── wiki-moc/          # MoC 절차
-        └── wiki-consolidate/  # 통합 승격 절차
+        └── wiki-consolidate/  # 통합·배치병합 절차
             └── scripts/       # confidence.py, list-claims.sh
 ```
 
@@ -202,7 +214,7 @@ find raw wiki -type d -exec touch {}/.gitkeep \;
 - `CLAUDE.md` (스키마 — 8장 frontmatter + 7장 규칙)
 - `.claude/agents/*.md` (5개 전문가 — 5-1장)
 - `.claude/skills/*/SKILL.md` (6개 스킬 — 5-2장)
-- 스크립트 7개 (9장) — 작성 후 `chmod +x`
+- 스크립트 10개 (9장) — 작성 후 `chmod +x`
 - `.claude/settings.json` (훅 — 7-6장)
 - `index.md`, `log.md`, `wiki/moc/home-moc.md` (시드)
 
@@ -211,6 +223,7 @@ find raw wiki -type d -exec touch {}/.gitkeep \;
 # 스크립트 실행권한
 chmod +x .claude/skills/wiki-lint/scripts/*.sh .claude/skills/wiki-lint/scripts/*.py
 chmod +x .claude/skills/wiki-consolidate/scripts/*.sh .claude/skills/wiki-consolidate/scripts/*.py
+chmod +x .claude/skills/wiki-ingest/scripts/*.sh metrics/cost-report.py
 ```
 - Claude Code에서 **`/hooks`를 한 번 열어** 새 훅을 로드한다 (세션 중 추가된 훅은 설정 watcher가 즉시 못 잡는다 — `/hooks` 열기 또는 재시작 필요).
 
@@ -234,11 +247,13 @@ chmod +x .claude/skills/wiki-consolidate/scripts/*.sh .claude/skills/wiki-consol
 
 | 에이전트 | 역할 | 사용 스킬 | 모델 |
 |----------|------|-----------|------|
-| **wiki-ingestor** | 소스 인제스트 — L2 증거 페이지 + L3 통합 + 신뢰도 + 덮어쓰기 + 관계 | wiki-ingest, wiki-moc | opus |
+| **wiki-ingestor** | 소스 인제스트 (lazy) — L2 증거 + **신규 L3 초안만**. 병합·신뢰도·덮어쓰기·관계는 lint 배치로 지연 | wiki-ingest, wiki-moc | **sonnet** |
 | **wiki-synthesizer** | 질의 응답 — index→MoC→L3 탐색, 신뢰도·최신성 반영 인용 답변, 환류 | wiki-query, wiki-moc | opus |
 | **wiki-linter** | 건강 검진 — 링크·망각·신뢰도 감사, 승격 후보, 모순 검사 | wiki-lint, wiki-consolidate, wiki-moc | opus |
 | **wiki-cartographer** | MoC 네비게이션 — 허브 생성·갱신, L3/L4 편입, 도달성 점검 | wiki-moc | opus |
-| **wiki-consolidator** | 기억 통합 — L1→L2 압축, L2→L3→L4 승격, 신뢰도 재계산 | wiki-consolidate, wiki-moc | opus |
+| **wiki-consolidator** | 기억 통합 — L1→L2 압축, L2→L3→L4 승격, 신뢰도 재계산 + **lazy 후속 배치 병합**(기존 페이지 통합·관계 구조화·중복 초안 정리) | wiki-consolidate, wiki-moc | opus |
+
+> **모델 라우팅(v2.1):** 인제스트는 추출·파일쓰기 위주라 **sonnet**(빈번한 경로를 싸게). 병합 판단·종합·감사 같은 고추론은 나머지 4개 에이전트가 **opus**로. 측정상 인제스트 페이지당 실질비용 ~4.6×↓·지연 ~3×↓.
 
 각 에이전트 정의 파일(`.claude/agents/{name}.md`)의 frontmatter는 **연결 계약**을 담는다:
 ```yaml
@@ -246,7 +261,7 @@ chmod +x .claude/skills/wiki-consolidate/scripts/*.sh .claude/skills/wiki-consol
 name: wiki-ingestor
 description: <언제 이 에이전트를 쓰나 — pushy하게>
 tools: Read, Write, Edit, Glob, Grep, Bash, WebFetch
-model: opus
+model: sonnet   # 인제스트=sonnet, 나머지 에이전트=opus (모델 라우팅)
 skills: [wiki-ingest, wiki-moc]   # 이 에이전트가 쓰는 스킬 (구성 자기평가용)
 ---
 ```
@@ -257,11 +272,11 @@ skills: [wiki-ingest, wiki-moc]   # 이 에이전트가 쓰는 스킬 (구성 �
 | 스킬 | 유형 | 하는 일 |
 |------|------|---------|
 | **wiki-ops** | 오케스트레이터 (진입점) | Phase 0 컨텍스트 확인 → 라우팅 → 오퍼레이션 흐름 조율 |
-| **wiki-ingest** | 워크플로우 | 소스 → L2 증거 + L3 통합 절차 |
+| **wiki-ingest** | 워크플로우 | (lazy) 소스 → L2 증거 + 신규 L3 초안 (병합·신뢰도·관계·승격은 lint 지연) |
 | **wiki-query** | 워크플로우 | 탐색 → 신뢰도 반영 인용 답변 → 환류 |
-| **wiki-lint** | 워크플로우 | 스크립트 검사 → 망각·신뢰도·supersession 감사 → 승격 → 추론 검사 |
+| **wiki-lint** | 워크플로우 | 스크립트 검사 → 망각·신뢰도·supersession 감사 → 배치 승격 → 추론 검사 |
 | **wiki-moc** | 워크플로우 | MoC 허브 구조·계층·편입·도달성 |
-| **wiki-consolidate** | 워크플로우 | 4계층 승격 파이프라인 (L1→L2→L3→L4) |
+| **wiki-consolidate** | 워크플로우 | 4계층 승격 (L1→L2→L3→L4) + **lazy 후속 배치 병합**(신뢰도·관계·기존 통합) |
 
 오케스트레이터 frontmatter는 **`orchestrates:` 배열**로 조율하는 에이전트를 선언:
 ```yaml
@@ -272,19 +287,22 @@ orchestrates: [wiki-ingestor, wiki-synthesizer, wiki-linter, wiki-cartographer, 
 ---
 ```
 
-### 5-3. 스크립트 (7개, 결정적 — LLM 토큰 0)
+### 5-3. 스크립트 (10개, 결정적 — LLM 토큰 0)
 
 계산은 스크립트가, 의미 판단만 LLM이. 상세는 [9장](#9-스크립트-레퍼런스).
 
 | 스크립트 | 위치 | 용도 |
 |----------|------|------|
 | `confidence.py` | wiki-consolidate/scripts | 소스 수·유형 → 신뢰도 점수 |
+| `list-claims.sh` | wiki-consolidate/scripts | L2 주장(claim::) 수집 → 배치 병합·승격 |
+| `concept-index.sh` | wiki-ingest/scripts | 기존 L3/L4 카탈로그 (본문 Read 없이 신규/기존 판별 — lazy의 핵심) |
 | `decay.py` | wiki-lint/scripts | Ebbinghaus 망각 보존율 계산·스캔 |
-| `link-audit.py` | wiki-lint/scripts | 끊긴 wikilink + 고아 페이지 |
+| `link-audit.py` | wiki-lint/scripts | 끊긴 wikilink + 고아 + 누락 타겟(stub_targets) |
 | `lint-due.sh` | wiki-lint/scripts | 마지막 lint 경과일 + L1 미압축 수 |
-| `wiki-status-check.sh` | wiki-lint/scripts | SessionStart 훅 — 알림 주입 |
+| `ingest-status.sh` | wiki-lint/scripts | raw 인제스트 상태 (done/pending) |
+| `wiki-status-check.sh` | wiki-lint/scripts | SessionStart 훅 — lint 경과·L1·미인제스트 알림 |
 | `search.sh` | wiki-lint/scripts | grep 기반 위키 본문 검색 |
-| `list-claims.sh` | wiki-consolidate/scripts | L2 주장(claim::) 수집 → 승격 클러스터링 |
+| `cost-report.py` | metrics/ | 문서당 토큰·모델가중 비용 리포트 |
 
 ---
 
@@ -302,17 +320,15 @@ orchestrates: [wiki-ingestor, wiki-synthesizer, wiki-linter, wiki-cartographer, 
 2. Claude Code에서: "raw/attention-is-all-you-need.md 인제스트해줘"
 ```
 
-**LLM이 하는 일:**
-1. 소스 읽기 (immutable) + 유형 판별 (공식/코드/일반/구두)
-2. 핵심 takeaway 논의 (강조 방향 수령)
-3. `wiki/L2-episodic/source-attention.md` 증거 페이지 작성 (주장은 `claim::` 표기)
-4. `wiki/L3-semantic/` 엔티티·개념·사실 페이지 생성/갱신 + **신뢰도 계산** + `last_confirmed`
-5. 바뀐 정보는 **덮어쓰기**(옛 페이지 stale, 삭제 안 함)
-6. 엔티티 **관계** 구조화 (`## 관계`)
-7. MoC 편입 + `index.md`·`log.md` 갱신
-8. 건드린 페이지·신뢰도·대체 보고
+**LLM이 하는 일 (v2.1 lazy — 싸고 빠르게):**
+1. 소스 읽기 (본문 immutable) + 유형 판별 (공식/코드/일반/구두) + 중복 스탬프 체크
+2. **기존 개념은 `concept-index.sh` 카탈로그로만 파악** (페이지 본문 Read 안 함 — 위키가 커도 O(1))
+3. `wiki/L2-episodic/source-*.md` 증거 페이지 — 핵심 사실 전부 `claim::`로 (재등장 신호)
+4. **신규 개념만** `wiki/L3-semantic/` 초안 생성 (confidence 0.6 고정). 기존과 겹치면 손대지 않음
+5. 신규 L3만 MoC에 가볍게 편입 + `index.md`·`log.md` + raw 맨 위 스탬프
+6. 신규 페이지·claim 수 보고 + "병합·신뢰도·관계·승격은 다음 lint 배치" 명시
 
-> 한 소스가 10–15 페이지를 건드릴 수 있다. 이 부기(bookkeeping)가 인제스트의 본체다.
+> **왜 lazy?** v2는 인제스트마다 기존 페이지를 전수 Read하고 병합·관계까지 해서 위키가 클수록 토큰이 O(n)로 폭증했다. v2.1은 인제스트를 증거 남기기로 가볍게 하고, 병합은 본질적으로 효율적인 **누적 후 lint 배치**로 옮겼다(→ [§6-5](#6-5-consolidate-기억-통합), [§7](#7-v2-메커니즘-상세)).
 
 ### 6-2. Query (질의)
 
@@ -370,11 +386,13 @@ orchestrates: [wiki-ingestor, wiki-synthesizer, wiki-linter, wiki-cartographer, 
 - **L1→L2:** L1 관찰 3–5줄 압축 → `session-YYYY-MM-DD.md` → L1 비움
 - **L2→L3:** 같은 주장 3회+ → `fact-*.md` 승격 (모순 시 보류)
 - **L3→L4:** 같은 절차 2회+ → `procedure-*.md` 추출
-- 승격·재확인마다 신뢰도 재계산, `last_confirmed` 리셋
+- **배치 병합 (lazy 인제스트 후속, v2.1):** lazy가 미룬 일을 lint에서 일괄 — 신규 개념 ↔ 기존 페이지 병합, `sources:` 추가·**신뢰도 재계산**(claim 재등장 카운트), `## 관계` 구조화, 중복 초안 정리. 병합은 여러 소스가 쌓인 뒤 한 번에 보는 게 효율적(소스마다 전수 스캔 회피).
 
 ---
 
 ## 7. v2 메커니즘 상세
+
+> **v2.1 타이밍 주의:** 아래 신뢰도·덮어쓰기·관계는 **개념**이고, v2.1에서는 인제스트가 아니라 **lint 배치 시점**에 계산·구조화된다(lazy). 인제스트는 신규 개념에 confidence 0.6만 고정으로 붙이고, 재계산·병합·관계는 미룬다.
 
 ### 7-1. 신뢰도 점수 (Confidence)
 
@@ -491,6 +509,16 @@ source_kind: official | code | normal | verbal
 ---
 ```
 
+**raw 파일 인제스트 스탬프** (raw/ 원본 맨 위에만 추가 — 본문 무변경, 완료 표시·중복 방지):
+```yaml
+---
+ingested: YYYY-MM-DD
+wiki_source: [[source-<slug>]]   # 생성된 L2 증거 페이지
+ingest_status: done
+---
+```
+raw 본문은 immutable이지만 이 상태 스탬프는 예외. `ingest-status.sh`가 이 표시로 done/pending을 판별한다.
+
 **규약 요약:**
 - 본문 한국어, 파일명 영문 kebab-case (`[[wikilinks]]` 깔끔)
 - `[[wikilinks]]` 양방향, 없는 페이지 링크는 스텁으로 남김
@@ -551,7 +579,21 @@ bash .claude/skills/wiki-lint/scripts/search.sh "transformer"      # wiki/ 전�
 ```bash
 bash .claude/skills/wiki-consolidate/scripts/list-claims.sh .      # L2-episodic의 claim:: 라인 수집
 ```
-같은 주장이 3회+ 등장하는지 LLM이 클러스터링하는 입력.
+같은 주장이 3회+ 등장하는지 LLM이 클러스터링하는 입력(배치 병합·승격).
+
+### concept-index.sh
+```bash
+bash .claude/skills/wiki-ingest/scripts/concept-index.sh .         # 기존 L3/L4 카탈로그
+# 출력: slug | title | aliases | confidence  (frontmatter만, 한 줄씩)
+```
+lazy 인제스트의 핵심 — 45개 페이지 본문을 Read하는 대신 이 한 출력만 보고 개념이 **기존인지 신규인지** 판별한다(토큰 O(1) 유지).
+
+### cost-report.py
+```bash
+python3 metrics/cost-report.py                # 문서당 토큰·페이지 효율 표
+python3 metrics/cost-report.py --by-model     # opus vs sonnet 비교 (모델가중 wcost)
+```
+`metrics/ingest-cost.csv`(오케스트레이터가 인제스트마다 append)를 읽어 tok/page·모델가중 비용을 낸다. v2/v2.1 비용대비효과 추적용. MODEL_PRICE 상대단가 opus 5·sonnet 1·haiku 0.25.
 
 ### ingest-status.sh
 ```bash
@@ -657,6 +699,10 @@ jq -e '.hooks' .claude/settings.json
 | stale 마킹, 삭제 안 함 | 이력 보존 — 언제 무엇이 왜 바뀌었는지 추적 |
 | 단일 런타임 (Claude Code) | Codex 미사용 — AGENTS.md/.codex 중복 동기 부담 회피 |
 | index.md + MoC 병존 | index=전수(기계적), MoC=큐레이션(계층). 임베딩 RAG 없이 수백 페이지 항해 |
+| **lazy 인제스트 (v2.1)** | 인제스트는 증거+신규초안만, 병합·신뢰도·관계·승격은 lint 배치로. eager는 위키 클수록 O(n) 토큰 폭증 — 병합은 누적 후 일괄이 효율적 |
+| **모델 라우팅 (v2.1)** | 인제스트=sonnet(기계적·빈번), 나머지=opus(고추론). 측정 페이지당 실질비용 ~4.6×↓·지연 ~3×↓ |
+| **비용 원장 (v2.1)** | `metrics/` — 문서당 토큰·모델가중 비용 추적. 최적화 효과를 숫자로 검증 |
+| raw/notes 스캔 제외 | 데일리 노트는 스크래치 — 매일 pending 알림 스팸 방지, 넣고 싶은 날만 수동 인제스트 |
 
 ---
 
