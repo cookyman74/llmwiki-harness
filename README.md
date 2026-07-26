@@ -136,7 +136,34 @@ llmwiki.obsidian/
 
 ## 4. 처음부터 재현하기 (Setup)
 
-빈 볼트에서 이 하네스를 처음부터 만드는 방법. 두 갈래가 있다.
+세 갈래가 있다. **하네스 repo를 받았다면 방법 C가 가장 빠르다.**
+
+### 방법 C — git clone로 하네스 배포본 받기 (가장 빠름)
+
+누군가 공유한 하네스 repo(구조·스킬만, 콘텐츠 제외)를 받아 바로 운영을 시작한다.
+
+```bash
+git clone <하네스-repo-URL> my-wiki && cd my-wiki
+```
+
+1. **개인 프로필 작성** — `CLAUDE.local.md`를 만들어 자기 소개를 적는다(gitignore라 공유 안 됨). Claude가 세션마다 로딩해 설명 톤을 맞춘다:
+   ```markdown
+   # CLAUDE.local.md
+   ## 목적 / 사용자 프로필
+   - 역할: (백엔드 개발자 / 데이터 사이언티스트 / …)
+   - 스택: (언어·프레임워크·인프라)
+   - 관심/학습: (현재 파고드는 주제)
+   ```
+2. **시드 복사** — 빈 색인·로그·현관 MoC를 제자리로:
+   ```bash
+   cp templates/seeds/index.md templates/seeds/log.md .
+   cp templates/seeds/home-moc.md wiki/moc/
+   ```
+3. **Claude Code 실행** → `/hooks` 한 번 열기(훅 로드) → Obsidian에서 볼트 열기.
+4. `raw/`에 첫 소스를 넣고 "인제스트해줘" → 위키가 자란다.
+
+> **업데이트 받기:** `git pull`. 하네스(스킬·에이전트·스크립트)만 갱신되고 내 콘텐츠는 그대로다.
+> **내가 하네스를 고쳐 재배포:** `git add .claude/ CLAUDE.md README.md templates/ && git commit && git push` — 콘텐츠·프로필은 `.gitignore`라 안 올라간다.
 
 ### 방법 A — myharness 팩토리로 자동 생성 (권장)
 
