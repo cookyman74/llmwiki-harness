@@ -22,7 +22,7 @@ L1-working  →  L2-episodic  →  L3-semantic  →  L4-procedural
 
 ## L2 → L3 (lint 시)
 목적: 반복 관찰된 일화를 지속 지식으로 승격.
-1. `bash .claude/skills/wiki-consolidate/scripts/list-claims.sh .` — L2 전체의 `claim::` 라인 수집.
+1. `python3 .claude/skills/wiki-consolidate/scripts/list-claims.py .` — L2 전체의 `claim::` 라인 수집.
 2. **의미가 같은 주장을 클러스터링**(스크립트는 라인만 모음, 동치 판단은 LLM). 같은 주장이 **3회 이상** 서로 다른 세션/소스에서 등장하면 승격 후보.
 3. **모순 증거가 있으면 승격 보류** — 대신 lint 리포트에 상충으로 보고.
 4. 승격: `wiki/L3-semantic/fact-<주제>.md` 생성/갱신. frontmatter에 `sources: [...]`, `confidence:`(→ confidence.py 계산), `last_confirmed: 오늘`, `decay_class:`. 근거 세션/소스와 양방향 링크. 알맞은 MoC 편입.
@@ -42,7 +42,7 @@ L1-working  →  L2-episodic  →  L3-semantic  →  L4-procedural
 
 ## 배치 병합 (lazy 인제스트 후속 — v2.1)
 경량 인제스트는 기존 개념을 안 건드리고 L2에 `claim::`만 남긴다. lint에서 그 지연분을 **일괄** 처리한다(고추론 = opus):
-1. `bash .claude/skills/wiki-consolidate/scripts/list-claims.sh .`로 L2 전체 claim 수집 + `bash .claude/skills/wiki-ingest/scripts/concept-index.sh .`로 기존 L3 카탈로그.
+1. `python3 .claude/skills/wiki-consolidate/scripts/list-claims.py .`로 L2 전체 claim 수집 + `python3 .claude/skills/wiki-ingest/scripts/concept-index.py .`로 기존 L3 카탈로그.
 2. **claim ↔ 기존 L3 매칭.** 같은 개념을 말하는 claim이 있으면 해당 L3 페이지에 사실 통합 + `sources:`에 그 소스 추가.
 3. **신뢰도 재계산**(아래) + `last_confirmed` 갱신.
 4. **관계 `## 관계` 구조화**(인제스트에서 지연된 것) — 개념 간 uses/depends_on/caused/fixed 등 추가.

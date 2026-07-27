@@ -58,7 +58,7 @@ def main():
     pages = {}       # slug -> relpath (type-declaring pages only)
     hub_slugs = set()
     for rel in candidates:
-        with open(os.path.join(root, rel), encoding="utf-8") as fh:
+        with open(os.path.join(root, rel), encoding="utf-8", errors="replace") as fh:
             head = fh.read(400)
         m = re.search(r"^type:\s*(\w+)", head, re.MULTILINE)
         if not m:
@@ -70,7 +70,7 @@ def main():
     inbound = {s: 0 for s in pages}
     broken = []  # (source_page, target)
     for s, rel in pages.items():
-        with open(os.path.join(root, rel), encoding="utf-8") as fh:
+        with open(os.path.join(root, rel), encoding="utf-8", errors="replace") as fh:
             text = fh.read()
         # ignore links inside HTML comments (examples) and code fences
         text = HTML_COMMENT.sub("", text)

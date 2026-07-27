@@ -25,7 +25,7 @@ KINDS = {"official", "code", "normal", "verbal"}
 
 def read_lines(path):
     # utf-8-sig: UTF-8 BOM 있으면 벗겨서 읽음 (Windows 저장 파일 대응)
-    with open(path, encoding="utf-8-sig") as fh:
+    with open(path, encoding="utf-8-sig", errors="replace") as fh:
         return fh.readlines()
 
 

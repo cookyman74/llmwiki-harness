@@ -58,7 +58,7 @@ def parse_date(s):
 
 
 def read_fm(path):
-    with open(path, encoding="utf-8") as fh:
+    with open(path, encoding="utf-8", errors="replace") as fh:
         head = fh.read(600)
     fm = {}
     for key in ("type", "decay_class", "last_confirmed", "updated", "status"):

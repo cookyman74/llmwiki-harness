@@ -9,7 +9,7 @@ description: How to answer a question against the LLM wiki (v2) — locate pages
 
 ## 절차
 
-1. **탐색.** `index.md` → 관련 `wiki/moc/{topic}-moc.md` → L3-semantic 페이지 순. 애매하면 `bash .claude/skills/wiki-lint/scripts/search.sh "<query>"`(L1–L4 전체 grep). 소스 원문 근거가 필요하면 L2-episodic도.
+1. **탐색.** `index.md` → 관련 `wiki/moc/{topic}-moc.md` → L3-semantic 페이지 순. 애매하면 `python3 .claude/skills/wiki-lint/scripts/search.py "<query>"`(L1–L4 전체 grep). 소스 원문 근거가 필요하면 L2-episodic도.
 
 2. **정독.** 후보 페이지를 읽는다. frontmatter의 `confidence`·`status`·`last_confirmed` 확인.
 

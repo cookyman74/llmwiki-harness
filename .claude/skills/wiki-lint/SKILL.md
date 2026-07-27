@@ -22,7 +22,7 @@ python3 .claude/skills/wiki-lint/scripts/link-audit.py . --json
 # 망각: Ebbinghaus 보존율, faded(R<0.3)/aging 페이지
 python3 .claude/skills/wiki-lint/scripts/decay.py --scan . --json
 # 본문 검색 (필요 시)
-bash .claude/skills/wiki-lint/scripts/search.sh "<query>"
+python3 .claude/skills/wiki-lint/scripts/search.py "<query>"
 ```
 
 ## 2단계: 망각 처리 (forgetting)
@@ -38,7 +38,7 @@ bash .claude/skills/wiki-lint/scripts/search.sh "<query>"
 
 ## 4단계: 통합 승격 (consolidation)
 `wiki-consolidate` 스킬 절차로:
-- **L2→L3**: `list-claims.sh`로 L2 주장 수집 → 같은 주장 3회+ 등장분을 L3 fact로 승격 후보(모순 있으면 보류).
+- **L2→L3**: `list-claims.py`로 L2 주장 수집 → 같은 주장 3회+ 등장분을 L3 fact로 승격 후보(모순 있으면 보류).
 - **L3→L4**: 같은 절차 2회+ 관찰분을 L4 procedure로 추출 후보.
 승격은 후보로 제안, 승인 후 반영.
 
