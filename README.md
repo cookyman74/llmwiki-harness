@@ -1,5 +1,8 @@
 # LLM Wiki — Obsidian 볼트를 LLM이 유지보수하는 지식 베이스로 운영하기
 
+[![CI](https://github.com/cookyman74/llmwiki-harness/actions/workflows/ci.yml/badge.svg)](https://github.com/cookyman74/llmwiki-harness/actions/workflows/ci.yml)
+[![Platform](https://img.shields.io/badge/platform-macOS%20%7C%20Linux%20%7C%20Windows-informational)](https://github.com/cookyman74/llmwiki-harness/actions/workflows/ci.yml)
+[![Python](https://img.shields.io/badge/python-3.x-3776AB?logo=python&logoColor=white)](https://www.python.org)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![Obsidian](https://img.shields.io/badge/Obsidian-vault-7c3aed?logo=obsidian&logoColor=white)](https://obsidian.md)
 [![Claude Code](https://img.shields.io/badge/Claude%20Code-harness-d97757)](https://claude.ai/code)
