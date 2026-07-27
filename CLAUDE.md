@@ -89,3 +89,4 @@ Ebbinghaus: 보존율 R=exp(−Δt/S), `decay_class`가 S 결정(아키텍처 �
 | 2026-07-23 | 비용 원장 | metrics/ingest-cost.csv + cost-report.py + wiki-ops 배선 | v2 비용대비효과 측정 — 문서당 토큰·페이지·낭비율 추적(오케스트레이터가 <usage> 기록) |
 | 2026-07-23 | v2.1 인제스트 최적화 | wiki-ingest(lazy)·wiki-ingestor(sonnet)·concept-index.sh·wiki-consolidate(배치병합)·cost-report(모델가중) | 속도·토큰 개선 — ①sonnet 라우팅 ②no-scan(concept-index) ③lazy(병합·신뢰도·관계·승격을 lint 배치로 지연). 측정: 페이지당 실질비용 ~4.6x↓·지연 ~3x↓ |
 | 2026-07-27 | 하네스 개선 P1 | validate-pages.py(포맷 검증)·lint-due(BACKLOG)·wiki-status-check | 무성 오염 조기 차단(stray 태그 85+3파일 sweep) + 백로그 기반 lint 트리거(시간 아닌 인제스트 누적 기준) |
+| 2026-07-27 | 하네스 개선 P2·P3 | concept-index(필터)·wiki-status-check(MoC·needs-confirm)·wiki-ops/ingest/lint 규칙 | P2: 신뢰도 하드코딩 금지·짧은소스 배치·인라인 원장정합·concept-index 필터. P3: 고inbound 스텁 자동초안·미해결 확인 큐·MoC 남발 억제 |

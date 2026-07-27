@@ -51,7 +51,7 @@ description: How to ingest a raw source into the LLM wiki (v2.1 lazy) — write 
    ```
    본문은 한국어 골격(요약 + 핵심 몇 줄) + 관련 `[[ ]]` 링크 몇 개. **관계 `## 관계` 구조화는 생략**(lint 배치). **기존 개념과 겹치면 새로 만들지도, 기존을 열지도 마라** — claim::만 남기면 lint가 병합한다.
 
-5. **MoC 편입(가볍게).** 신규 L3만 알맞은 기존 MoC에 한 줄 추가. 새 주제 영역이면 MoC 1개 생성. 깊은 큐레이션은 `wiki-cartographer`/lint 몫.
+5. **MoC 편입(가볍게, 남발 금지).** 신규 L3는 **기존 MoC 우선** 편입(한 줄 추가). 새 MoC는 **정말 새 주제 영역이고 편입 페이지 ≥2일 때만** 생성 — 1페이지짜리 얇은 MoC는 만들지 말고 인접 기존 MoC나 `home-moc`의 "미분류" 섹션에 임시 배치. 깊은 큐레이션·MoC 재구성은 `wiki-cartographer`/lint 몫(MoC가 12개 넘으면 자동 권고).
 
 6. **index.md + log.md + raw 스탬프.**
    - index: 신규 페이지만 추가.
