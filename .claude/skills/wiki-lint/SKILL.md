@@ -57,5 +57,10 @@ bash .claude/skills/wiki-lint/scripts/search.sh "<query>"
 
 조사할 새 질문·찾을 새 소스도 제안. 수리 반영 시 `updated`·해당되면 `last_confirmed` 갱신, log에 `## [오늘] lint | <요지>` append(자동화 훅이 이 항목으로 경과일 계산 — 반드시 남긴다).
 
+## 7단계: 후속 액션 (P3 — 지적이 실행으로)
+lint이 반복 지적만 하고 아무도 안 고치는 것을 막는다:
+- **고inbound 스텁 자동초안 제안.** `stub_targets` 중 **inbound ≥3**(여러 페이지가 가리킴)은 작성 가치가 확실 → 사용자에게 "이 스텁들 초안 만들까?" 제안하고, 승인 시 `wiki-ingestor`(또는 직접)로 골격 페이지 생성. (예: bert·gpt·llm·rnn — 3회 연속 lint에서 방치됐던 것)
+- **미해결 항목 → 확인 큐.** 사람 판단이 필요한 것(동일성 미확인 예: firstpick↔recruitment, 상충 우열 불명)은 lint가 임의 판정하지 말고 `_workspace/needs-confirm.md`에 `- [ ] <항목> (근거·필요한 확인)`으로 적재. SessionStart가 리마인드하고, 해소되면 체크. (표류 방지)
+
 ## 원칙
 **제안 먼저, 자동 수정 금지.** 삭제·병합·강등·대규모 재작성은 승인 후. 안전 수정(짝 링크 추가, 신뢰도 숫자 교정, last_confirmed 리셋)만 승인받아 적용. 스크립트가 링크·망각·신뢰도를 공짜로 계산하니, LLM 예산은 의미 검사(모순·승격 동치 판단)에 쓴다.

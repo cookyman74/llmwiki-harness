@@ -71,6 +71,14 @@ raw/  →  L1-working  →  L2-episodic  →  L3-semantic  →  L4-procedural
 - 스톨·재시도 발생 시 낭비 토큰은 `wasted_tokens`에 별도 기록(효율 왜곡 방지).
 - 리포트: `python3 metrics/cost-report.py` — 페이지당·소스100줄당 토큰, 낭비율, 총계. v2 도입 효과를 이 지표로 추적한다.
 
+## 운영 규칙 (P2·P3 — v0.6)
+- **신뢰도 하드코딩 금지.** 인제스트·lint·병합 프롬프트에 confidence 숫자(0.85 등)를 지정하지 마라 — 언제나 `confidence.py` 결과가 정본. (과거 오케스트레이터가 0.85로 지시 → 스크립트가 verbal 페널티로 0.75 교정한 사례.)
+- **짧은 소스는 배치 인제스트.** 메일·데일리처럼 짧은 동종 소스가 여럿 pending이면 **한 번에 묶어** 인제스트(스킬로딩·concept-index·부기 고정비 상각). 소스당 개별 스폰은 짧을수록 페이지당 토큰이 폭증.
+- **인라인 인제스트도 원장 기록.** 오케스트레이터가 에이전트 없이 직접 처리한 인제스트(예: 데일리)도 `metrics/ingest-cost.csv`에 기록 — 측정 정합(누락 시 통계 왜곡).
+- **concept-index 필터.** 위키가 커지면 `concept-index.sh . <키워드…>`로 소스 주제 관련분만 봐서 카탈로그 덤프를 바운드.
+- **MoC 남발 억제 → cartographer.** 신규 MoC는 최소화(기존 우선). 주제 MoC가 12개 넘으면 SessionStack 알림 → `wiki-cartographer`로 그룹 재구성.
+- **미해결 항목은 확인 큐로.** 사람 판단이 필요한 것(동일성·상충 등)은 `_workspace/needs-confirm.md`에 `- [ ] <항목>`으로 적재 — SessionStart가 리마인드.
+
 ## 규약 정본
 페이지 명명·frontmatter·신뢰도·덮어쓰기·망각·관계는 `CLAUDE.md`가 정본. 모든 전문가가 따른다.
 

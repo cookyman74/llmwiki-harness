@@ -9,6 +9,7 @@ root="$here/../../../.."   # scripts -> wiki-lint -> skills -> .claude -> vault 
 root="$(cd "$root" && pwd)"
 
 BACKLOG_THRESH=5   # 마지막 lint 이후 인제스트가 이만큼 쌓이면 lint 권고
+MOC_THRESH=12      # 주제 MoC(home 제외)가 이만큼 넘으면 cartographer 재구성 권고
 
 due_out="$(bash "$here/lint-due.sh" "$root" 3 2>/dev/null || true)"
 status_line="$(printf '%s\n' "$due_out" | head -1)"
@@ -41,6 +42,26 @@ fmt_issues="$(python3 "$here/validate-pages.py" "$root" --json 2>/dev/null | gre
 fmt_issues="${fmt_issues:-0}"
 if [ "${fmt_issues:-0}" -gt 0 ]; then
   msgs+=("페이지 포맷 위반 ${fmt_issues}건 감지(stray 태그·frontmatter 등) — \`validate-pages.py\`로 확인 후 정리 권장.")
+fi
+
+# MoC 남발 — home 제외 주제 MoC 수가 임계 넘으면 cartographer 재구성 권고
+moc_dir="$root/wiki/moc"
+if [ -d "$moc_dir" ]; then
+  moc_n=$(find "$moc_dir" -maxdepth 1 -name '*.md' -not -name 'home-moc.md' 2>/dev/null | wc -l | tr -d ' ')
+  if [ "${moc_n:-0}" -gt "$MOC_THRESH" ]; then
+    msgs+=("주제 MoC ${moc_n}개 — home-moc 비대·얇은 MoC 가능. \`wiki-cartographer\`로 그룹 재구성 검토 권장.")
+  fi
+fi
+
+# 미해결 확인 큐 — 사람 판단이 필요한 항목(동일성·상충 등)이 쌓였으면 리마인드
+ncq="$root/_workspace/needs-confirm.md"
+if [ -f "$ncq" ]; then
+  # grep -c 는 0매칭 시 "0"을 찍고 exit 1 → `|| echo 0` 쓰면 "0\n0" 오염. `|| true`만.
+  nc_n=$(grep -cE '^- \[ \]' "$ncq" 2>/dev/null || true)
+  nc_n="${nc_n:-0}"; case "$nc_n" in ''|*[!0-9]*) nc_n=0 ;; esac
+  if [ "$nc_n" -gt 0 ]; then
+    msgs+=("확인 대기 항목 ${nc_n}건 (\`_workspace/needs-confirm.md\`) — 사람 판단 필요(동일성·상충 등). 확인 후 체크.")
+  fi
 fi
 
 if [ "${#msgs[@]}" -eq 0 ]; then
