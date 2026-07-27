@@ -13,6 +13,8 @@ description: How to ingest a raw source into the LLM wiki (v2.1 lazy) — write 
 
 규약 정본: `CLAUDE.md`.
 
+> **주의:** 페이지 파일에 `</content>` 같은 **닫는 태그·래퍼를 절대 붙이지 마라.** 파일은 순수 마크다운(frontmatter + 본문)으로 끝난다. (과거 인제스트가 EOF에 stray `</content>`를 남겨 85개 파일을 sweep한 적 있음.)
+
 ## 절차
 
 1. **소스 읽기 + 중복 체크.** `raw/` 대상. **본문 immutable.** frontmatter `ingest_status: done`이면 이미 인제스트 — 사용자에게 알리고 중단(재인제스트는 갱신 모드 별도). 소스 유형 판별(official/code/normal/verbal).

@@ -10,6 +10,9 @@ description: How to health-check the LLM wiki (v2) — run link-audit + decay sc
 ## 1단계: 결정적 검사 (스크립트 — LLM 토큰 0)
 
 ```bash
+# 페이지 포맷 검증: stray 태그·frontmatter·type·confidence 형식 (무성 오염 조기 차단)
+python3 .claude/skills/wiki-lint/scripts/validate-pages.py . --json
+#   → stray-tag/no-frontmatter/no-type/bad-confidence 위반 발견 시 먼저 정리
 # 링크: 끊긴 wikilink + 고아 + 누락 타겟 집계 (L3/L4/moc 대상)
 python3 .claude/skills/wiki-lint/scripts/link-audit.py . --json
 #   broken       : 대상 없는 wikilink (page,target 중복 제거)
