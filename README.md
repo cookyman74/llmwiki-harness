@@ -141,14 +141,14 @@ llmwiki.obsidian/
     └── skills/                # 워크플로우 정의 (어떻게)
         ├── wiki-ops/          # ★ 오케스트레이터 (진입점)
         ├── wiki-ingest/       # 인제스트 절차 (lazy)
-        │   └── scripts/       # concept-index.sh
+        │   └── scripts/       # concept-index.py
         ├── wiki-query/        # 질의 절차
         ├── wiki-lint/         # 점검 절차
-        │   └── scripts/       # link-audit.py, decay.py, lint-due.sh, search.sh,
-        │                      # ingest-status.sh, wiki-status-check.sh
+        │   └── scripts/       # link-audit.py, decay.py, lint-due.py, search.py,
+        │                      # ingest-status.py, wiki-status-check.py
         ├── wiki-moc/          # MoC 절차
         └── wiki-consolidate/  # 통합·배치병합 절차
-            └── scripts/       # confidence.py, list-claims.sh
+            └── scripts/       # confidence.py, list-claims.py
 ```
 
 ---
@@ -237,10 +237,13 @@ chmod +x .claude/skills/wiki-ingest/scripts/*.sh metrics/cost-report.py
 ### 사전 요구사항
 
 - **Claude Code** 설치
-- **python3** (스크립트 — 신뢰도·망각·링크 감사 계산; macOS 기본 탑재)
-- **grep, jq, awk** (셸 스크립트 — 대부분 OS 기본)
+- **python3** (모든 결정적 스크립트 + 훅 — 표준 라이브러리만 사용)
 - (선택) **Obsidian** — 위키를 사람이 브라우징. 그래프 뷰로 위키 형태를 본다.
-- **rg(ripgrep) 불필요** — 스크립트는 rg가 비로그인 셸 PATH에 없는 경우가 많아 **grep 기반**으로 작성됨.
+
+> **크로스플랫폼:** 모든 스크립트·훅이 **python3 전용**이다(bash·grep·awk·jq·rg 불필요). 따라서:
+> - **macOS·Linux** — 그대로 작동 (python3 기본/쉬운 설치).
+> - **Windows** — **네이티브로 작동** (python3만 PATH에 있으면 됨; WSL·Git Bash 불필요). 단 훅 명령이 `python3`를 부르므로 Windows에서 `python`만 있으면 `python3` 별칭을 잡아주거나 PATH에 `python3` 확보.
+> - 줄바꿈은 `.gitattributes`가 LF로 정규화(Windows CRLF 손상 방지).
 
 ---
 
@@ -301,14 +304,14 @@ orchestrates: [wiki-ingestor, wiki-synthesizer, wiki-linter, wiki-cartographer, 
 | 스크립트 | 위치 | 용도 |
 |----------|------|------|
 | `confidence.py` | wiki-consolidate/scripts | 소스 수·유형 → 신뢰도 점수 |
-| `list-claims.sh` | wiki-consolidate/scripts | L2 주장(claim::) 수집 → 배치 병합·승격 |
-| `concept-index.sh` | wiki-ingest/scripts | 기존 L3/L4 카탈로그 (본문 Read 없이 신규/기존 판별 — lazy의 핵심) |
+| `list-claims.py` | wiki-consolidate/scripts | L2 주장(claim::) 수집 → 배치 병합·승격 |
+| `concept-index.py` | wiki-ingest/scripts | 기존 L3/L4 카탈로그 (본문 Read 없이 신규/기존 판별 — lazy의 핵심) |
 | `decay.py` | wiki-lint/scripts | Ebbinghaus 망각 보존율 계산·스캔 |
 | `link-audit.py` | wiki-lint/scripts | 끊긴 wikilink + 고아 + 누락 타겟(stub_targets) |
-| `lint-due.sh` | wiki-lint/scripts | 마지막 lint 경과일 + L1 미압축 수 |
-| `ingest-status.sh` | wiki-lint/scripts | raw 인제스트 상태 (done/pending) |
-| `wiki-status-check.sh` | wiki-lint/scripts | SessionStart 훅 — lint 경과·L1·미인제스트 알림 |
-| `search.sh` | wiki-lint/scripts | grep 기반 위키 본문 검색 |
+| `lint-due.py` | wiki-lint/scripts | 마지막 lint 경과일 + L1 미압축 수 |
+| `ingest-status.py` | wiki-lint/scripts | raw 인제스트 상태 (done/pending) |
+| `wiki-status-check.py` | wiki-lint/scripts | SessionStart 훅 — lint 경과·L1·미인제스트 알림 |
+| `search.py` | wiki-lint/scripts | grep 기반 위키 본문 검색 |
 | `cost-report.py` | metrics/ | 문서당 토큰·모델가중 비용 리포트 |
 
 ---
@@ -329,7 +332,7 @@ orchestrates: [wiki-ingestor, wiki-synthesizer, wiki-linter, wiki-cartographer, 
 
 **LLM이 하는 일 (v2.1 lazy — 싸고 빠르게):**
 1. 소스 읽기 (본문 immutable) + 유형 판별 (공식/코드/일반/구두) + 중복 스탬프 체크
-2. **기존 개념은 `concept-index.sh` 카탈로그로만 파악** (페이지 본문 Read 안 함 — 위키가 커도 O(1))
+2. **기존 개념은 `concept-index.py` 카탈로그로만 파악** (페이지 본문 Read 안 함 — 위키가 커도 O(1))
 3. `wiki/L2-episodic/source-*.md` 증거 페이지 — 핵심 사실 전부 `claim::`로 (재등장 신호)
 4. **신규 개념만** `wiki/L3-semantic/` 초안 생성 (confidence 0.6 고정). 기존과 겹치면 손대지 않음
 5. 신규 L3만 MoC에 가볍게 편입 + `index.md`·`log.md` + raw 맨 위 스탬프
@@ -347,7 +350,7 @@ orchestrates: [wiki-ingestor, wiki-synthesizer, wiki-linter, wiki-cartographer, 
 ```
 
 **LLM이 하는 일:**
-1. `index.md` → 관련 MoC → L3 페이지 탐색 (없으면 `search.sh`)
+1. `index.md` → 관련 MoC → L3 페이지 탐색 (없으면 `search.py`)
 2. `confidence`·`status`·`last_confirmed` 확인
 3. **stale 페이지는 주근거로 안 씀** (superseded_by 따라 현재 페이지로)
 4. 각 주장에 **신뢰도 + 출처 인용** 병기
@@ -475,9 +478,9 @@ lint가 `decay.py --scan`으로 faded 페이지를 표시한다.
 
 **두 개의 훅** (`.claude/settings.json`):
 
-1. **SessionStart 훅** — `wiki-status-check.sh`
+1. **SessionStart 훅** — `wiki-status-check.py`
    - 세션 시작 시 1회 실행 (Stop 훅은 매 턴 발화 = 스팸이라 회피)
-   - `lint-due.sh`로 마지막 lint 3일+ 경과 또는 L1 미압축 감지
+   - `lint-due.py`로 마지막 lint 3일+ 경과 또는 L1 미압축 감지
    - 해당 시 모델 컨텍스트에 알림 주입 → Claude가 능동으로 lint/consolidate 제안
    - 아무것도 안 걸리면 `{}` (조용)
 
@@ -524,7 +527,7 @@ wiki_source: [[source-<slug>]]   # 생성된 L2 증거 페이지
 ingest_status: done
 ---
 ```
-raw 본문은 immutable이지만 이 상태 스탬프는 예외. `ingest-status.sh`가 이 표시로 done/pending을 판별한다.
+raw 본문은 immutable이지만 이 상태 스탬프는 예외. `ingest-status.py`가 이 표시로 done/pending을 판별한다.
 
 **규약 요약:**
 - 본문 한국어, 파일명 영문 kebab-case (`[[wikilinks]]` 깔끔)
@@ -567,30 +570,30 @@ python3 .claude/skills/wiki-lint/scripts/link-audit.py . --json    # {broken, or
 - **stub_targets:** 없는 페이지를 가리키는 링크를 **참조 페이지 수(inbound)순**으로 집계 → 여러 페이지가 가리키는 스텁 = 누락 개념 **최우선 작성 후보**. (의도된 스텁과 오타 broken을 구분하는 신호)
 - HTML 주석·코드펜스 안의 링크는 무시. `type:` 있는 파일만 페이지로 취급.
 
-### lint-due.sh
+### lint-due.py
 ```bash
-bash .claude/skills/wiki-lint/scripts/lint-due.sh . 3      # 임계 3일
+python3 .claude/skills/wiki-lint/scripts/lint-due.py . 3      # 임계 3일
 # 출력: "DUE 5" | "OK 2" | "NEVER"  +  "L1:<미압축 페이지 수>"
 ```
 `log.md`의 마지막 `## [날짜] lint` 항목으로 경과일 계산.
 
-### wiki-status-check.sh
-SessionStart 훅이 호출. `lint-due.sh` 결과로 알림 JSON을 만든다. DUE거나 L1>0이면 `{"hookSpecificOutput":{"hookEventName":"SessionStart","additionalContext":"..."}}`, 아니면 `{}`.
+### wiki-status-check.py
+SessionStart 훅이 호출. `lint-due.py` 결과로 알림 JSON을 만든다. DUE거나 L1>0이면 `{"hookSpecificOutput":{"hookEventName":"SessionStart","additionalContext":"..."}}`, 아니면 `{}`.
 
-### search.sh
+### search.py
 ```bash
-bash .claude/skills/wiki-lint/scripts/search.sh "transformer"      # wiki/ 전체 grep (rg 미의존)
+python3 .claude/skills/wiki-lint/scripts/search.py "transformer"      # wiki/ 전체 grep (rg 미의존)
 ```
 
-### list-claims.sh
+### list-claims.py
 ```bash
-bash .claude/skills/wiki-consolidate/scripts/list-claims.sh .      # L2-episodic의 claim:: 라인 수집
+python3 .claude/skills/wiki-consolidate/scripts/list-claims.py .      # L2-episodic의 claim:: 라인 수집
 ```
 같은 주장이 3회+ 등장하는지 LLM이 클러스터링하는 입력(배치 병합·승격).
 
-### concept-index.sh
+### concept-index.py
 ```bash
-bash .claude/skills/wiki-ingest/scripts/concept-index.sh .         # 기존 L3/L4 카탈로그
+python3 .claude/skills/wiki-ingest/scripts/concept-index.py .         # 기존 L3/L4 카탈로그
 # 출력: slug | title | aliases | confidence  (frontmatter만, 한 줄씩)
 ```
 lazy 인제스트의 핵심 — 45개 페이지 본문을 Read하는 대신 이 한 출력만 보고 개념이 **기존인지 신규인지** 판별한다(토큰 O(1) 유지).
@@ -602,9 +605,9 @@ python3 metrics/cost-report.py --by-model     # opus vs sonnet 비교 (모델가
 ```
 `metrics/ingest-cost.csv`(오케스트레이터가 인제스트마다 append)를 읽어 tok/page·모델가중 비용을 낸다. v2/v2.1 비용대비효과 추적용. MODEL_PRICE 상대단가 opus 5·sonnet 1·haiku 0.25.
 
-### ingest-status.sh
+### ingest-status.py
 ```bash
-bash .claude/skills/wiki-lint/scripts/ingest-status.sh .           # raw/ 인제스트 상태
+python3 .claude/skills/wiki-lint/scripts/ingest-status.py .           # raw/ 인제스트 상태
 # 출력: DONE <date> <file> | PENDING <file>  +  "ingested: N   pending: M"
 ```
 raw 파일 맨 위 스탬프(`ingest_status: done`)를 읽어 인제스트 완료/대기를 판별. **raw 본문은 immutable — 스탬프는 맨 위 메타 블록만 추가**(본문 무변경). Obsidian에서 각 소스에 완료 표시가 보이고, 중복 인제스트를 막는다. `wiki_source` 필드는 생성된 L2 증거 페이지로 클릭 이동. 미인제스트 소스는 SessionStart 훅도 알린다.

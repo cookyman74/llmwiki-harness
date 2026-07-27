@@ -65,7 +65,7 @@ Ebbinghaus: 보존율 R=exp(−Δt/S), `decay_class`가 S 결정(아키텍처 �
   ingest_status: done
   ---
   ```
-  이미 `ingest_status: done`이면 재인제스트 — 신규 생성 대신 기존 페이지 갱신하고 `ingested` 날짜만 갱신. 미인제스트 raw 조회: `bash .claude/skills/wiki-lint/scripts/ingest-status.sh`.
+  이미 `ingest_status: done`이면 재인제스트 — 신규 생성 대신 기존 페이지 갱신하고 `ingested` 날짜만 갱신. 미인제스트 raw 조회: `python3 .claude/skills/wiki-lint/scripts/ingest-status.py`.
 - 충돌 사실은 삭제 말고 병기(`> [!warning] 상충`) — 대체는 supersession으로.
 - 파일 이동·이름변경은 승인 후에만 (wikilink 깨짐).
 - 편집 시 기존 frontmatter 보존, `updated:` 갱신. 사실 재확인이면 `last_confirmed`도 갱신(망각 리셋).
@@ -85,8 +85,9 @@ Ebbinghaus: 보존율 R=exp(−Δt/S), `decay_class`가 S 결정(아키텍처 �
 | 2026-07-23 | 초기 구성 | 전체 (wiki-ops + 4 전문가 + wiki-* 스킬) | LLM 위키 하네스 구축 |
 | 2026-07-23 | v2 업그레이드 | 4계층 기억·신뢰도·덮어쓰기·망각·엔티티 관계·자동화 + wiki-consolidator/wiki-consolidate + 스크립트(confidence·decay·lint-due) | v1 한계(평평·무등급·정적·수동) 개선 |
 | 2026-07-23 | link-audit 개선 | scripts/link-audit.py + wiki-lint 스킬 | 스모크 테스트에서 스텁·broken 혼재 발견 → 누락 타겟을 inbound순 집계(작성 후보화) |
-| 2026-07-23 | raw ingest 스탬프 | raw 본문/스탬프 정책 + wiki-ingest/ingestor + ingest-status.sh + SessionStart | 인제스트 완료 표시 요구 → 본문 immutable 유지하며 상태 frontmatter만 스탬프, 미인제스트 조회 |
+| 2026-07-23 | raw ingest 스탬프 | raw 본문/스탬프 정책 + wiki-ingest/ingestor + ingest-status.py + SessionStart | 인제스트 완료 표시 요구 → 본문 immutable 유지하며 상태 frontmatter만 스탬프, 미인제스트 조회 |
 | 2026-07-23 | 비용 원장 | metrics/ingest-cost.csv + cost-report.py + wiki-ops 배선 | v2 비용대비효과 측정 — 문서당 토큰·페이지·낭비율 추적(오케스트레이터가 <usage> 기록) |
-| 2026-07-23 | v2.1 인제스트 최적화 | wiki-ingest(lazy)·wiki-ingestor(sonnet)·concept-index.sh·wiki-consolidate(배치병합)·cost-report(모델가중) | 속도·토큰 개선 — ①sonnet 라우팅 ②no-scan(concept-index) ③lazy(병합·신뢰도·관계·승격을 lint 배치로 지연). 측정: 페이지당 실질비용 ~4.6x↓·지연 ~3x↓ |
+| 2026-07-23 | v2.1 인제스트 최적화 | wiki-ingest(lazy)·wiki-ingestor(sonnet)·concept-index.py·wiki-consolidate(배치병합)·cost-report(모델가중) | 속도·토큰 개선 — ①sonnet 라우팅 ②no-scan(concept-index) ③lazy(병합·신뢰도·관계·승격을 lint 배치로 지연). 측정: 페이지당 실질비용 ~4.6x↓·지연 ~3x↓ |
 | 2026-07-27 | 하네스 개선 P1 | validate-pages.py(포맷 검증)·lint-due(BACKLOG)·wiki-status-check | 무성 오염 조기 차단(stray 태그 85+3파일 sweep) + 백로그 기반 lint 트리거(시간 아닌 인제스트 누적 기준) |
 | 2026-07-27 | 하네스 개선 P2·P3 | concept-index(필터)·wiki-status-check(MoC·needs-confirm)·wiki-ops/ingest/lint 규칙 | P2: 신뢰도 하드코딩 금지·짧은소스 배치·인라인 원장정합·concept-index 필터. P3: 고inbound 스텁 자동초안·미해결 확인 큐·MoC 남발 억제 |
+| 2026-07-27 | 크로스플랫폼 (bash→python) | bash 스크립트 6개 python 포팅·훅 python화(stamp-updated.py)·settings.json·.gitattributes | Windows 네이티브 지원 — bash/grep/awk/jq 의존 제거, 단일 언어(python3+markdown). LF 정규화로 CRLF 손상 방지 |

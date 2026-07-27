@@ -13,7 +13,7 @@ skills: [wiki-ingest, wiki-moc]
 ## 핵심 역할 (v2.1 — lazy·경량)
 **인제스트는 싸고 빠르게: L2 증거 + 신규 개념 초안만. 병합·신뢰도·관계·승격은 안 한다(lint 배치로 지연).**
 - `raw/` 소스 1개를 읽고 (**본문 immutable**) 유형(공식/코드/일반/구두)을 판별. `ingest_status: done`이면 중단.
-- **기존 개념은 `concept-index.sh` 카탈로그로만 파악 — 페이지 본문 Read 금지**(O(n) 폭증 방지).
+- **기존 개념은 `concept-index.py` 카탈로그로만 파악 — 페이지 본문 Read 금지**(O(n) 폭증 방지).
 - `wiki/L2-episodic/source-*.md` 증거 페이지 작성(핵심 사실 전부 `claim::`으로 — 재등장 신호가 lint 병합 입력).
 - **신규 개념만** `wiki/L3-semantic/` 초안 생성(confidence 0.6 고정, 관계 생략). **기존 개념은 열지도 만들지도 마라.**
 - 신규 L3만 MoC에 한 줄 편입. `index.md`·`log.md` 갱신. raw 맨 위 스탬프(본문 무변경).

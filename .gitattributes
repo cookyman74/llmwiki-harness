@@ -1,0 +1,5 @@
+# 줄바꿈 LF 정규화 — Windows 체크아웃 시 CRLF 손상 방지 (스크립트·마크다운 일관성)
+* text=auto eol=lf
+*.py text eol=lf
+*.md text eol=lf
+*.json text eol=lf

@@ -21,7 +21,7 @@ description: How to ingest a raw source into the LLM wiki (v2.1 lazy) — write 
 
 2. **기존 개념 파악 — 본문 Read 금지.** 다음 한 줄 실행으로 기존 L3/L4 카탈로그만 본다(45개 페이지 본문을 읽지 마라):
    ```bash
-   bash .claude/skills/wiki-ingest/scripts/concept-index.sh .
+   python3 .claude/skills/wiki-ingest/scripts/concept-index.py .
    ```
    출력(slug|title|aliases|confidence)으로 소스의 개념이 **이미 있는지(기존)** vs **없는지(신규)** 판별한다.
 
