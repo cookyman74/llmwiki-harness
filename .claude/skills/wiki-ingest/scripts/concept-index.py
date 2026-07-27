@@ -14,6 +14,13 @@ import os
 import re
 import sys
 
+# Windows/비UTF-8 로케일에서 한글 stdout 출력 인코딩 오류 방지 — UTF-8 강제
+try:
+    sys.stdout.reconfigure(encoding="utf-8")
+    sys.stderr.reconfigure(encoding="utf-8")
+except Exception:
+    pass
+
 
 def read_fm(path):
     # utf-8-sig: UTF-8 BOM 대응 (Windows 저장 파일)
@@ -27,7 +34,7 @@ def read_fm(path):
             break
         m = re.match(r"^([A-Za-z_]\w*):\s*(.*)$", l)
         if m:
-            fm[m.group(1)] = m.group(2).strip()
+            fm[m.group(1)] = m.group(2).strip()  # .strip() → CRLF의 \r 제거
     return fm
 
 

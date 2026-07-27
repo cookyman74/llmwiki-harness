@@ -19,6 +19,13 @@ import re
 import sys
 import json
 
+# Windows/비UTF-8 로케일에서 한글 stdout 출력 인코딩 오류 방지 — UTF-8 강제
+try:
+    sys.stdout.reconfigure(encoding="utf-8")
+    sys.stderr.reconfigure(encoding="utf-8")
+except Exception:
+    pass
+
 WIKILINK = re.compile(r"\[\[([^\]]+?)\]\]")
 HTML_COMMENT = re.compile(r"<!--.*?-->", re.DOTALL)
 FENCE = re.compile(r"```.*?```", re.DOTALL)

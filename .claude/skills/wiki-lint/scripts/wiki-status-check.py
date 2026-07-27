@@ -12,6 +12,13 @@ import re
 import subprocess
 import sys
 
+# Windows/비UTF-8 로케일에서 한글 stdout 출력 인코딩 오류 방지 — UTF-8 강제
+try:
+    sys.stdout.reconfigure(encoding="utf-8")
+    sys.stderr.reconfigure(encoding="utf-8")
+except Exception:
+    pass
+
 BACKLOG_THRESH = 5    # 마지막 lint 이후 인제스트가 이만큼이면 lint 권고
 MOC_THRESH = 12       # 주제 MoC(home 제외)가 이만큼 넘으면 cartographer 권고
 

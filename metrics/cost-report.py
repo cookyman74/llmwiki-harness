@@ -16,6 +16,13 @@ Usage: cost-report.py [csv] [--json] [--by-model]
 """
 import csv, sys, json, os
 
+# Windows/비UTF-8 로케일에서 한글 stdout 출력 인코딩 오류 방지 — UTF-8 강제
+try:
+    sys.stdout.reconfigure(encoding="utf-8")
+    sys.stderr.reconfigure(encoding="utf-8")
+except Exception:
+    pass
+
 DEFAULT = os.path.join(os.path.dirname(__file__), "ingest-cost.csv")
 MODEL_PRICE = {"opus": 5.0, "sonnet": 1.0, "haiku": 0.25}
 
@@ -29,7 +36,7 @@ def num(x, cast=int, d=0):
 
 def load(path):
     rows = []
-    with open(path, encoding="utf-8") as fh:
+    with open(path, encoding="utf-8", errors="replace") as fh:
         for r in csv.DictReader(fh):
             tok = num(r["tokens"]); wasted = num(r.get("wasted_tokens", 0))
             lines = num(r["source_lines"]); pages = num(r["l3_new"]) + num(r["l3_merged"])
