@@ -27,7 +27,7 @@ def read_fm(path):
             break
         m = re.match(r"^([A-Za-z_]\w*):\s*(.*)$", l)
         if m:
-            fm[m.group(1)] = m.group(2).strip()
+            fm[m.group(1)] = m.group(2).strip()  # .strip() → CRLF의 \r 제거
     return fm
 
 
