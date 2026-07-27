@@ -8,6 +8,13 @@ Usage: search.py "<query>" [vault_root]
 import os
 import sys
 
+# Windows/비UTF-8 로케일에서 한글 stdout 출력 인코딩 오류 방지 — UTF-8 강제
+try:
+    sys.stdout.reconfigure(encoding="utf-8")
+    sys.stderr.reconfigure(encoding="utf-8")
+except Exception:
+    pass
+
 
 def main():
     if len(sys.argv) < 2:
