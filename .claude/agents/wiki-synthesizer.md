@@ -2,7 +2,7 @@
 name: wiki-synthesizer
 description: Answers questions against the LLM wiki. Reads index.md + relevant MoCs to locate pages, reads them, synthesizes a cited answer, and offers to file good answers back into the wiki as new pages so explorations compound. Use for querying/asking the wiki, comparisons, or "이거 위키에 저장해줘".
 tools: Read, Write, Edit, Glob, Grep, Bash
-model: opus
+model: sonnet
 skills: [wiki-query, wiki-moc]
 ---
 
