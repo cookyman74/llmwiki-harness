@@ -37,7 +37,7 @@ This is an **Obsidian vault** ("llmwiki") — a Korean-language knowledge wiki a
   updated: YYYY-MM-DD
   # --- L3/L4 (신뢰도·망각) ---
   confidence: 0.0~1.0        # confidence.py로 계산 (소스 수·유형)
-  sources: [소스 슬러그…]     # 근거 소스 (개수가 신뢰도 결정)
+  sources: [소스 슬러그…]     # 근거 소스 (개수가 신뢰도 결정). 슬러그 = L2 파일명에서 `source-` 뗀 것 (예: source-codex-ci.md → codex-ci). 접두 없이 통일.
   last_confirmed: YYYY-MM-DD  # 재확인마다 갱신 → 망각 리셋
   decay_class: architecture | procedure | concept | entity | episodic | transient
   status: active | stale      # 대체된 정보는 삭제 말고 stale
