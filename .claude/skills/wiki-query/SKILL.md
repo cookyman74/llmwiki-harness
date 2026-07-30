@@ -22,7 +22,10 @@ description: How to answer a question against the LLM wiki (v2) — locate pages
 
 5. **형식.** 기본 md, 비교면 표, (요청 시) Marp·차트.
 
-6. **환류.** 재사용 가치 있는 답(비교·분석·발견한 연결)은 파일링 제안. 승인 시 `wiki/L3-semantic/`에 `type: concept`(또는 fact)로 저장 — sources·confidence·last_confirmed·decay_class 부여, 근거 페이지와 양방향 링크, MoC 편입, log append(`## [오늘] query | <요지>`).
+6. **환류.** 재사용 가치 있는 답(비교·분석·발견한 연결, **브리핑·보고·종합**)은 파일링 제안 — 특히 여러 소스를 엮은 답은 채팅으로 흘리지 말고 남긴다. 승인 시:
+   - **개념·사실**이면 `wiki/L3-semantic/`에 `type: concept`(또는 fact).
+   - **브리핑·보고·상태 요약**처럼 시점 종속 답이면 `type: query`(예: `query-<주제>-YYYY-MM-DD.md`). **`type`은 query, 계층은 L2-episodic** — query는 "그 시점에 종합한 것"이라 본질이 일화(episodic)다(그래서 `decay_class: episodic`로 시간 지나면 바램). 계층=L2, 유형=query로 source/session과 구분한다.
+   - 공통: sources·confidence·last_confirmed·decay_class 부여, 근거 페이지와 양방향 링크, 알맞은 MoC 편입, log append(`## [오늘] query | <요지>`).
 
 ## 왜 신뢰도를 보이나
 v1은 모든 정보가 동등해 보였다 — 단일 트윗과 3소스 확인 사실이 같은 무게. 신뢰도를 답에 노출하면 사용자가 무엇을 믿을지 판단할 수 있고, 저신뢰 주장은 보강 대상으로 드러난다.
