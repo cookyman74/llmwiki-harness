@@ -1,6 +1,6 @@
 ---
 name: wiki-ops
-description: Orchestrator for operating this Obsidian vault as an LLM wiki (v2 — tiered memory). Routes vault work to the right specialist — ingest a source, query the wiki, lint/health-check, maintain MoC navigation, or consolidate memory (L1→L2→L3→L4). Use for any wiki operation — "소스 인제스트/파일링", "위키에 질문", "위키 점검/린트", "MoC 갱신", "세션 종료/L1 압축/통합/승격", and follow-ups like "다시 실행/재실행/업데이트/보완/이전 결과 기반으로". Simple one-off questions can be answered directly.
+description: Orchestrator for operating this Obsidian vault as an LLM wiki (v2 — tiered memory). Routes vault work to the right specialist — ingest a source, query the wiki, lint/health-check, maintain MoC navigation, or consolidate memory (L1→L2→L3→L4). Use for any wiki operation — "소스 인제스트/파일링", "위키에 질문", "위키 점검/린트", "MoC 갱신", "세션 종료/L1 압축/통합/승격", and follow-ups like "다시 실행/재실행/업데이트/보완/이전 결과 기반으로". 위키 내용을 묻는 질문은 wiki-synthesizer로 위임(브리핑·보고·종합 포함) — 하네스 사용법·단일값 조회 같은 사소한 것만 직접 응답.
 orchestrates: [wiki-ingestor, wiki-synthesizer, wiki-linter, wiki-cartographer, wiki-consolidator]
 ---
 
@@ -46,6 +46,11 @@ raw/  →  L1-working  →  L2-episodic  →  L3-semantic  →  L4-procedural
 **Ingest:** 소스 확인 → `wiki-ingestor`(L2 증거 페이지 + L3 통합 + 신뢰도 + 덮어쓰기 + 관계) → 새 L3 페이지 MoC 편입 → index·log 확인 → **비용 기록**(아래) → 신뢰도·대체 포함 보고.
 
 **Query:** `wiki-synthesizer`(index→MoC→L3 탐색 → 신뢰도·최신성 반영 인용 답변) → 환류 가치면 파일링 → log.
+
+> **질의 라우팅 규칙 (인라인 우회 금지).** 위키 내용을 근거로 답하는 질문은 **원칙적으로 `wiki-synthesizer`에게 위임**한다. 오케스트레이터가 grep으로 직접 종합하지 마라 — 그러면 신뢰도 병기·환류·index→MoC 탐색이 빠진다.
+> - **인라인 직접 응답 허용(예외):** 위키 근거가 필요 없는 것 — 하네스 사용법·메타 질문, 방금 대화 맥락 확인, 단일 값 조회(예: "지금 pending 몇 개?"는 스크립트 1회).
+> - **반드시 wiki-synthesizer로:** 여러 소스/페이지를 종합하는 질문, 브리핑·보고·비교·분석, "무엇을 했나/뭐가 있나/누구에게 보고" 류. 이런 답은 **환류 가치가 높으니** 답변 후 위키 페이지로 파일링을 제안·반영한다(유형은 wiki-query가 판단 — 개념·사실이면 `type: concept`, 시점 종속 보고면 `type: query`).
+> - 판단 애매하면 **위임이 기본**.
 
 **Lint:** `wiki-linter`(스크립트: link-audit+decay → 망각 처리 → 신뢰도·supersession 감사 → 통합 승격 후보 → 추론 검사 → 심각도 목록) → 승인분만 반영 → lint 항목 log 필수(자동화 경과일 계산 근거).
 
