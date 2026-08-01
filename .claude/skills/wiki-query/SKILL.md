@@ -7,11 +7,16 @@ description: How to answer a question against the LLM wiki (v2) — locate pages
 
 위키에 근거 있게 답하고 좋은 답을 환류한다. v2는 **신뢰도·최신성**을 답에 반영한다.
 
-> **모델·속도(v0.8.1):** 질의는 추출·인용 위주라 `wiki-synthesizer` 기본 **sonnet**(빠름·저비용). 깊은 비교·다소스 종합·분석은 오케스트레이터가 spawn 시 **opus로 override**. 검색 자체(index/`search.py`)는 즉시(토큰0) — 느림의 원인은 모델·환류지 검색이 아니다.
+> **모델·속도(v0.8.1):** 질의는 추출·인용 위주라 `wiki-synthesizer` 기본 **sonnet**(빠름·저비용). 깊은 비교·다소스 종합·분석은 오케스트레이터가 spawn 시 **opus로 override**.
+
+> **리트리벌(v0.8.4 — 그래프확장+팩, A/B 4라운드 실측 채택):** **index.md 통독 금지.** 오케스트레이터가 `scope-expand.py`로 사전스코프(0토큰)해 넘긴 **컨텍스트 팩(claims)**을 정독한다. 순수 lexical 스코프는 관계연결 페이지(session·entity 등)에 못 닿아 recall이 깨진다 → 그래프 1홉 확장이 정본. 실측: 광역탐색 대비 토큰 −37%·tool_uses −64%, recall 유지.
 
 ## 절차
 
-1. **탐색.** `index.md` → 관련 `wiki/moc/{topic}-moc.md` → L3-semantic 페이지 순. 애매하면 `python3 .claude/skills/wiki-lint/scripts/search.py "<query>"`(L1–L4 전체 grep). 소스 원문 근거가 필요하면 L2-episodic도.
+1. **탐색 — 팩 우선(index 통독 금지).**
+   - 오케스트레이터가 `scope-expand.py expand <키워드…>` → `pack <후보…>`로 만든 **컨텍스트 팩 1파일**을 먼저 읽는다(후보 12~15개의 frontmatter+claims). 이게 15페이지 통독을 대체한다.
+   - 팩의 claims로 **충분하면 개별 페이지 full-read 금지**(토큰 절약). 특정 주장에 팩이 불충분할 때만 그 페이지를 골라 full-read.
+   - 팩이 없거나(직접 호출) 후보가 빈약하면 `python3 .claude/skills/wiki-lint/scripts/search.py --files "<kw>" …`로 직접 스코프. **index.md 전량 read·광역 MoC 스윕은 하지 않는다**(fallback도 관련 MoC 1개까지, MoC 선택은 `ls wiki/moc/` 파일명 매칭).
 
 2. **정독.** 후보 페이지를 읽는다. frontmatter의 `confidence`·`status`·`last_confirmed` 확인.
 

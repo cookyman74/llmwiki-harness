@@ -45,7 +45,15 @@ raw/  →  L1-working  →  L2-episodic  →  L3-semantic  →  L4-procedural
 ## 오퍼레이션 흐름
 **Ingest:** 소스 확인 → `wiki-ingestor`(L2 증거 페이지 + L3 통합 + 신뢰도 + 덮어쓰기 + 관계) → 새 L3 페이지 MoC 편입 → index·log 확인 → **비용 기록**(아래) → 신뢰도·대체 포함 보고.
 
-**Query:** `wiki-synthesizer`(index→MoC→L3 탐색 → 신뢰도·최신성 반영 인용 답변) → 환류 가치면 파일링 → log. **모델: 기본 sonnet**(빠름) — 깊은 비교·다소스 종합·분석만 spawn 시 `model: opus`로 override. 이미 정본 query 페이지가 있으면 재종합 말고 참조(선택적 환류).
+**Query:** **사전스코프(0토큰) → 팩 → `wiki-synthesizer` 종합** → 환류 가치면 파일링 → log. **모델: 기본 sonnet** — 깊은 비교·다소스 종합만 `model: opus` override. 정본 query 페이지 있으면 재종합 말고 참조.
+
+> **사전스코프 배선 (v0.8.4 — index 통독 폐지, A/B 4라운드 실측 채택).** 위키 내용 질의는 오케스트레이터가 **먼저 결정적 스코프**를 만들어 synthesizer에 팩으로 넘긴다:
+> 1. **키워드 추출** — 질의에서 주제어 + **엔티티** + 동의어 3~6개(엔티티 포함이 recall의 진짜 레버 — 실측). 자연어 그대로 grep 금지.
+> 2. `python3 .claude/skills/wiki-lint/scripts/scope-expand.py expand "<kw>" … --top-seed 8 --max 15` (브리핑) 또는 `--max 8`(단일조회). lexical seed→관계 1홉 확장, 0토큰.
+> 3. `scope-expand.py pack <후보 slug…>` → claims 컨텍스트 팩(1파일).
+> 4. synthesizer에 **팩 파일 경로 + 후보 목록**만 전달(내용 요약·나열 금지 — 슬림). "팩 먼저 읽고, 불충분분만 개별 full-read, **index 통독 금지**".
+> - **`--max`는 12~15 고정.** 넓혀도 recall 안 오르고(synthesizer가 주변 후보 미인용) 팩만 비대 — 실측 확인. recall은 max 아니라 **키워드 품질**로 올린다.
+> - 라우팅: 단일사실 조회는 `--max 8`(팩 소형)·경량. 포괄 브리핑·비교는 `--max 15`.
 
 > **질의 라우팅 규칙 (인라인 우회 금지).** 위키 내용을 근거로 답하는 질문은 **원칙적으로 `wiki-synthesizer`에게 위임**한다. 오케스트레이터가 grep으로 직접 종합하지 마라 — 그러면 신뢰도 병기·환류·index→MoC 탐색이 빠진다.
 > - **인라인 직접 응답 허용(예외):** 위키 근거가 필요 없는 것 — 하네스 사용법·메타 질문, 방금 대화 맥락 확인, 단일 값 조회(예: "지금 pending 몇 개?"는 스크립트 1회).

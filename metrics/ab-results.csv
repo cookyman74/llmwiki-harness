@@ -1,0 +1,11 @@
+date,query,arm,tokens,tool_uses,index_read,recall,notes
+2026-08-01,Q1,A,47886,8,Y,0.54,"baseline 광역 — 정본 빨리 찾음, ax-rollout 맥락 누락"
+2026-08-01,Q1,B,38684,10,N,0.46,"사전스코프 — ax-rollout 적중, curriculum 개념 일부 누락(fallback 부족)"
+2026-08-01,Q2,B,33645,10,N,0.50,"사전스코프 — 핵심 5개 적중, session/recruitment/vault fallback 안함"
+2026-08-01,Q2,A,50620,14,Y,0.80,"baseline 광역 — index+4 MoC, session/recruitment 적중"
+2026-08-01,Q1,B-rerun,39079,11,N,0.38,"재현 — recall 회귀 재현(설계결함 확정)"
+2026-08-01,Q2,B-rerun,35413,11,N,0.50,"재현 — fallback 시도했으나 관계연결 페이지 못찾음"
+2026-08-01,Q1,C,35414,4,N,0.38,"그래프확장+팩 — tool_uses 4(pack 1read), 커리큘럼 심화·ax-rollout은 키워드 미포함"
+2026-08-01,Q2,C,30605,5,N,0.60,"그래프확장+팩 — vault/poc/didim 도달(recall 0.50→0.60), tool_uses 5"
+2026-08-01,Q1,C2-tuned,46669,7,N,0.46,"max25+키워드강화 — ax-rollout 인용(키워드성공), pack 27KB로 토큰↑"
+2026-08-01,Q2,C2-tuned,32458,4,N,0.60,"max25+키워드강화 — recruitment 도달, session/daily는 synthesizer 미선택"
