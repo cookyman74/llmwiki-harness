@@ -30,6 +30,7 @@
 6. [사용법 — 5가지 오퍼레이션](#6-사용법--5가지-오퍼레이션)
 6.5. [일상 응용 시나리오](#65-일상-응용-시나리오-단순-qa를-넘어)
 7. [v2 메커니즘 상세](#7-v2-메커니즘-상세)
+7.5. [질의 리트리벌 최적화 (v0.8.4~v0.9.0)](#75-질의-리트리벌-최적화-v084v090)
 8. [Frontmatter 스키마 레퍼런스](#8-frontmatter-스키마-레퍼런스)
 9. [스크립트 레퍼런스](#9-스크립트-레퍼런스)
 10. [Obsidian 설정 팁](#10-obsidian-설정-팁)
@@ -528,6 +529,41 @@ lint가 `decay.py --scan`으로 faded 페이지를 표시한다.
    - `Write|Edit`로 `.md` 파일을 건드리면 frontmatter `updated:`를 오늘로 자동 갱신
 
 **진짜 자율 백그라운드 lint**를 원하면 → Claude Code `/schedule` (클라우드 크론 에이전트)로 별도 배선. 예: "매주 월요일 위키 lint 돌려줘".
+
+---
+
+## 7.5 질의 리트리벌 최적화 (v0.8.4~v0.9.0)
+
+질의 응답이 질의당 52~62k 토큰을 쓰던 문제(index 통독 + 광역 MoC 스윕)를 **결정적 그래프 스코프 + 질의유형 라우팅**으로 최적화했다. A/B 9라운드 실측·매 릴리즈 외부감사(agy). 상세: `develop_docs/v0.8.3/TECH-SUMMARY.md`, `develop_docs/v0.8.5/COMBO.md`, 실측 원장 `metrics/ab-results.csv`.
+
+### 핵심 이동
+```
+[구식]  질의 → index(218줄) 통독 → MoC 다수 → 페이지 12~19 full-read → 종합
+[신식]  질의 → scope-expand.py(0토큰): lexical seed → 관계 1홉 확장 → (rerank) → claims 팩
+       → synthesizer: 팩 1-read → 부족분만 full-read → 종합
+```
+
+### 적용 기술과 근거자료
+| 기술 | 근거 | 우리 구현 |
+|---|---|---|
+| **그래프 확장 스코프** | GraphRAG — 지식그래프 엣지 탐색 | `scope-expand.py expand`: `[[링크]]` 파싱, lexical seed→관계 1홉(아웃·인·MoC멤버). 순수 lexical이 못 닿는 관계연결 페이지 도달 |
+| **claims 컨텍스트 팩** | Parent-Document Retriever(small-to-big) | 팩(claims)=small-side, 페이지 full=parent. 팩 1-read로 다중 페이지 대체 |
+| **질의유형 라우팅** | Adaptive-RAG(질의복잡도 라우팅) | 조회=seed·사실브리핑=rerank+팩·절차=full-read. 하나의 전략은 만능 아님 |
+| **BM25 rerank** | Anthropic Contextual Retrieval(reranking 실패 49→67%↓) | 임베딩 없이 BM25(0토큰)로 확장 pool을 질의관련도 top-N 축소 |
+
+> 요약: **우리 claims 팩 = parent-retriever의 small-side였고, rerank·라우팅이 빠진 조각**이었다. Adaptive-RAG로 질의유형을 나누고, Contextual Retrieval의 reranking을 BM25로 얹어 완성.
+
+### 실측 결과 (동일조건 A/B)
+| 질의유형 | 구식(baseline) | 신식 | 개선 |
+|---|---|---|---|
+| **사실브리핑** | 50.6k / 14 tool | 22.7k / 1 tool | **토큰 −55%·tool −93%** |
+| **절차·how-to** | 39.5k / 8 | ~38k / 10 | 동률(절차는 스코핑 이득 없음 — 본질적으로 다페이지 세부 필요) |
+
+### 교훈 (실측 검증)
+- **관계 도달은 lexical로 안 됨** → 그래프 1홉 확장 필수.
+- **팩은 사실질의에만 이득** → 절차질의는 full-read 라우팅.
+- **rerank는 최대 레버지만 다이얼** → 조이면 싸지고 recall 준다(11이 균형).
+- **recall의 진짜 레버는 `--max`가 아니라 키워드 품질**(엔티티 포함).
 
 ---
 
