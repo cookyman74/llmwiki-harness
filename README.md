@@ -550,8 +550,16 @@ lint가 `decay.py --scan`으로 faded 페이지를 표시한다.
 | **claims 컨텍스트 팩** | Parent-Document Retriever(small-to-big) | 팩(claims)=small-side, 페이지 full=parent. 팩 1-read로 다중 페이지 대체 |
 | **질의유형 라우팅** | Adaptive-RAG(질의복잡도 라우팅) | 조회=seed·사실브리핑=rerank+팩·절차=full-read. 하나의 전략은 만능 아님 |
 | **BM25 rerank** | Anthropic Contextual Retrieval(reranking 실패 49→67%↓) | 임베딩 없이 BM25(0토큰)로 확장 pool을 질의관련도 top-N 축소 |
+| **팩에 관계 포함** (v0.8.6) | 관계질의=관계 실린 사실브리핑 | pack이 `## 관계`(uses/depends_on) 줄도 추출(+300토큰). 관계타겟(connector 등)을 새 라우트 없이 커버 |
 
 > 요약: **우리 claims 팩 = parent-retriever의 small-side였고, rerank·라우팅이 빠진 조각**이었다. Adaptive-RAG로 질의유형을 나누고, Contextual Retrieval의 reranking을 BM25로 얹어 완성.
+
+### 질의유형별 라우팅 (파라미터)
+| 유형 | 스코프 명령 | 전달 |
+|---|---|---|
+| 단일조회 | `scope-expand.py expand … --max 6` | seed 목록 |
+| 사실브리핑·비교 | `… --max 20 --rerank 11` | claims 팩 |
+| 절차·how-to | `… --max 8`(rerank 안 함) | 후보 full-read(팩 없음) |
 
 ### 실측 결과 (동일조건 A/B)
 | 질의유형 | 구식(baseline) | 신식 | 개선 |
@@ -564,6 +572,10 @@ lint가 `decay.py --scan`으로 faded 페이지를 표시한다.
 - **팩은 사실질의에만 이득** → 절차질의는 full-read 라우팅.
 - **rerank는 최대 레버지만 다이얼** → 조이면 싸지고 recall 준다(11이 균형).
 - **recall의 진짜 레버는 `--max`가 아니라 키워드 품질**(엔티티 포함).
+- **절차질의 비용은 근본적** → 스코핑으로 못 줄임. 반복비용은 환류 캐시(query 페이지)로만.
+- **관계질의는 새 유형 아님** → 팩에 관계 실으면 사실브리핑 라우트로 커버.
+
+> 전체 근거자료·구현 상세·A/B 원장: `develop_docs/v0.8.3/TECH-SUMMARY.md`. 관련 리서치 — [GraphRAG](https://microsoft.github.io/graphrag/) · [Parent-Document Retriever](https://python.langchain.com/v0.2/docs/how_to/parent_document_retriever/) · [Adaptive-RAG](https://arxiv.org/pdf/2502.00409) · [Anthropic Contextual Retrieval](https://www.anthropic.com/engineering/contextual-retrieval) · Contextual Compression · Self-RAG · Stop-RAG · AB-RAG.
 
 ---
 
