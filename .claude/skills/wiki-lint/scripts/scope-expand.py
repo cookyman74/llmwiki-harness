@@ -257,6 +257,21 @@ def do_pack(slugs, root):
                     para = t; break
             if para:
                 print(f"- (요약) {para}")
+        # ## 관계 구조화 줄(`- pred :: [[target]] …`)도 포함 — 관계질의 대응(compact).
+        # 코드펜스 내부는 건너뜀(agy #3: 예시 코드 오포착 방지). 들여쓰기·하이픈술어 허용(#1·#2).
+        # claim:: 은 제외(claims에서 이미 처리 — 중복 방지). 관계는 관례상 단일줄.
+        rel_re = re.compile(r"-\s*([\w-]+\s*::\s*\[\[[^\]]+\]\].*)$")
+        in_fence = False
+        for ln in text.split("\n"):
+            s = ln.strip()
+            if s.startswith("```"):
+                in_fence = not in_fence
+                continue
+            if in_fence:
+                continue
+            m = rel_re.match(s)
+            if m and not m.group(1).lower().startswith("claim"):
+                print(f"- 관계) {m.group(1).strip()}")
         print()
 
 
