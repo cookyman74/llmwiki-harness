@@ -43,15 +43,29 @@ def frontmatter(path):
 
 # 값 앞뒤 따옴표(선택) 허용 — `ingest_status: "done"` / `ingested: '2026-07-31'` 대응.
 # ^ 앵커 유지: 스탬프는 항상 top-level 필드(중첩 아님)라 들여쓰기 매칭은 오탐만 늘림.
-_RE_STATUS = re.compile(r"""^ingest_status:\s*['"]?(\w+)""", re.MULTILINE)
+_RE_STATUS_LINE = re.compile(r"^ingest_status:\s*(.+)$", re.MULTILINE)
 _RE_DATE = re.compile(r"""^ingested:\s*['"]?([0-9-]+)""", re.MULTILINE)
+VALID_STATUS = ("done", "stale", "pending")
+
+
+def _clean(v):
+    """따옴표·공백 제거 + 제어문자/이스케이프 검출. (cleaned, ok)."""
+    raw = v.strip().strip("'\"")
+    # 제어문자(예: \b=\x08) 또는 리터럴 백슬래시-이스케이프(\b 등) = 손상값
+    ok = raw in VALID_STATUS and not re.search(r"[\x00-\x1f]|\\", raw)
+    return raw, ok
 
 
 def stamp(path):
-    """(status, ingested_date). status in done|stale|pending."""
+    """(status, ingested_date). status in done|stale|pending|BAD.
+    ingest_status 값이 VALID_STATUS 밖이거나 제어문자/이스케이프면 'BAD'(손상)."""
     fm = frontmatter(path)
-    m = _RE_STATUS.search(fm)
-    st = m.group(1) if m else "pending"
+    m = _RE_STATUS_LINE.search(fm)
+    if not m:
+        st = "pending"
+    else:
+        raw, ok = _clean(m.group(1))
+        st = raw if ok else "BAD"
     d = _RE_DATE.search(fm)
     return st, (d.group(1) if d else "?")
 
@@ -63,7 +77,7 @@ def main():
         print("no raw/ dir")
         return
 
-    done_n = pend_n = 0
+    done_n = pend_n = bad_n = 0
     rows = []
     for dp, dirs, files in os.walk(rawdir):
         # assets/ · notes/ 하위 제외
@@ -79,13 +93,19 @@ def main():
             if st == "done":
                 rows.append(f"DONE    {d}  {rel}")
                 done_n += 1
+            elif st == "BAD":
+                rows.append(f"BAD     {rel}  (손상된 ingest_status 값 — done/stale/pending 아님)")
+                bad_n += 1
             else:
                 rows.append(f"{st.upper():8}{rel}")
                 pend_n += 1
     for r in sorted(rows):
         print(r)
     print("---")
-    print(f"ingested: {done_n}   pending: {pend_n}")
+    tail = f"ingested: {done_n}   pending: {pend_n}"
+    if bad_n:
+        tail += f"   BAD: {bad_n} (손상 stamp — 교정 필요)"
+    print(tail)
 
 
 if __name__ == "__main__":
