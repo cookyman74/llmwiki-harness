@@ -169,7 +169,43 @@ def expand(G, terms, seeds, max_out):
     return [(slug, [tier, refs]) for tier, _, refs, slug in rows[:max_out]]
 
 
-def do_expand(terms, root, top_seed, max_out):
+import math
+
+
+def _score_text(d):
+    """스코어링용 텍스트 — 링크 타겟·URL 제거(dl 왜곡 방지, agy #3). 소문자."""
+    t = d["text"] + "\n" + d["aliases"]
+    t = re.sub(r"\]\([^)]*\)", "]", t)      # [텍스트](url) → 텍스트만
+    t = re.sub(r"https?://\S+", "", t)       # 맨 URL 제거
+    return t.lower()
+
+
+def bm25_rank(G, terms, cand_slugs, k1=1.5, b=0.75):
+    """후보를 BM25로 재순위(0토큰). IDF는 전체 코퍼스(G), tf·dl은 후보 본문+aliases.
+    그래프 확장(recall)으로 모은 pool을 질의 관련도(precision)로 좁히는 rerank 단계.
+    정렬은 (score desc, slug) — 동점도 slug로 결정적(불안정 정렬 아님, agy #4)."""
+    terms = list(dict.fromkeys(t for t in terms if len(t) >= 2))  # 중복제거+1글자 제외(agy #1·#2)
+    N = len(G)
+    texts = {s: _score_text(G[s]) for s in G}
+    avgdl = sum(len(t) for t in texts.values()) / max(N, 1)
+    idf = {}
+    for t in terms:
+        df = sum(1 for tx in texts.values() if t in tx)
+        idf[t] = math.log((N - df + 0.5) / (df + 0.5) + 1)
+    scores = {}
+    for s in cand_slugs:
+        tx = texts.get(s, "")
+        dl = len(tx) or 1
+        sc = 0.0
+        for t in terms:
+            tf = tx.count(t)
+            if tf:
+                sc += idf[t] * (tf * (k1 + 1)) / (tf + k1 * (1 - b + b * dl / avgdl))
+        scores[s] = sc
+    return sorted(cand_slugs, key=lambda s: (-scores[s], s)), scores
+
+
+def do_expand(terms, root, top_seed, max_out, rerank_n=0):
     base = os.path.join(root, "wiki")
     G = build_graph(base)
     tl = [t.lower() for t in terms if t.strip()]
@@ -179,8 +215,16 @@ def do_expand(terms, root, top_seed, max_out):
         return
     rows = expand(G, tl, seeds, max_out)
     tiers = {0: "seed", 1: "1hop", 2: "moc"}
-    for slug, (tier, refs) in rows:
-        print(f"{tiers[tier]}\t{refs}\t{slug}\t{G.get(slug, {}).get('type', '?')}")
+    if rerank_n:
+        # 확장 pool을 BM25로 재순위 → 질의 관련 top-N만(pack/read 대상 축소)
+        pool = [slug for slug, _ in rows]
+        ranked, sc = bm25_rank(G, tl, pool)
+        tier_of = {slug: tier for slug, (tier, _) in rows}
+        for slug in ranked[:rerank_n]:
+            print(f"{tiers[tier_of[slug]]}\t{sc[slug]:.1f}\t{slug}\t{G.get(slug, {}).get('type', '?')}")
+    else:
+        for slug, (tier, refs) in rows:
+            print(f"{tiers[tier]}\t{refs}\t{slug}\t{G.get(slug, {}).get('type', '?')}")
 
 
 def do_pack(slugs, root):
@@ -222,7 +266,7 @@ def main():
         print(__doc__, file=sys.stderr)
         sys.exit(2)
     mode = args[0]
-    root, top_seed, max_out = ".", 6, 15
+    root, top_seed, max_out, rerank_n = ".", 6, 15, 0
     rest = []
     i = 1
     while i < len(args):
@@ -233,10 +277,12 @@ def main():
             top_seed = int(args[i + 1]); i += 2
         elif a == "--max":
             max_out = int(args[i + 1]); i += 2
+        elif a == "--rerank":
+            rerank_n = int(args[i + 1]); i += 2
         else:
             rest.append(a); i += 1
     if mode == "expand":
-        do_expand(rest, root, top_seed, max_out)
+        do_expand(rest, root, top_seed, max_out, rerank_n)
     else:
         do_pack(rest, root)
 

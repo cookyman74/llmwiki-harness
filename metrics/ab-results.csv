@@ -9,3 +9,5 @@ date,query,arm,tokens,tool_uses,index_read,recall,notes
 2026-08-01,Q2,C,30605,5,N,0.60,"그래프확장+팩 — vault/poc/didim 도달(recall 0.50→0.60), tool_uses 5"
 2026-08-01,Q1,C2-tuned,46669,7,N,0.46,"max25+키워드강화 — ax-rollout 인용(키워드성공), pack 27KB로 토큰↑"
 2026-08-01,Q2,C2-tuned,32458,4,N,0.60,"max25+키워드강화 — recruitment 도달, session/daily는 synthesizer 미선택"
+2026-08-01,Q3,routed-fullread,38359,12,N,-,"절차 라우팅 full-read — 링크추적으로 sarif/container 도달(완전), baseline과 동률(~38k)"
+2026-08-01,Q2,routed-rerank8pack,22660,1,N,0.50,"사실 라우팅 rerank8+팩 — 팩만 1read로 충분(역대최저 22.7k)"
