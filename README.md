@@ -137,12 +137,13 @@ llmwiki.obsidian/
 │
 └── .claude/                   # 하네스
     ├── settings.json          # 훅 (SessionStart 자동 점검 + PostToolUse updated 스탬프)
-    ├── agents/                # 전문가 정의 (누가) — 5개
+    ├── agents/                # 전문가 정의 (누가) — 6개
     │   ├── wiki-ingestor.md        (model: sonnet)
     │   ├── wiki-synthesizer.md
     │   ├── wiki-linter.md
     │   ├── wiki-cartographer.md
-    │   └── wiki-consolidator.md
+    │   ├── wiki-consolidator.md
+    │   └── meeting-scribe.md       (model: sonnet)
     └── skills/                # 워크플로우 정의 (어떻게)
         ├── wiki-ops/          # ★ 오케스트레이터 (진입점)
         ├── wiki-ingest/       # 인제스트 절차 (lazy)
@@ -152,8 +153,12 @@ llmwiki.obsidian/
         │   └── scripts/       # link-audit.py, decay.py, lint-due.py, search.py,
         │                      # ingest-status.py, wiki-status-check.py
         ├── wiki-moc/          # MoC 절차
-        └── wiki-consolidate/  # 통합·배치병합 절차
-            └── scripts/       # confidence.py, list-claims.py
+        ├── wiki-consolidate/  # 통합·배치병합 절차
+        │   └── scripts/       # confidence.py, list-claims.py
+        ├── weekly-review/     # 주간 리뷰 자동화
+        └── meeting-minutes/   # 녹음 → 전사 → 회의록 (로컬/OpenAI 이중 백엔드)
+            ├── scripts/       # transcribe.py, apikey.py
+            └── references/    # backend-setup.md
 ```
 
 ---
@@ -258,7 +263,7 @@ chmod +x .claude/skills/wiki-ingest/scripts/*.sh metrics/cost-report.py
 
 **실행 모드: 전문가 풀 (서브 에이전트 디스패치).** 오퍼레이션마다 전문가 **1명**을 호출한다 — 동시 협업 팀이 아니다. 한 소스 인제스트는 교차참조·신뢰도 일관성을 위해 **단일 에이전트**가 통째로 처리한다(분할하면 페이지 충돌).
 
-### 5-1. 에이전트 (5명)
+### 5-1. 에이전트 (6명)
 
 | 에이전트 | 역할 | 사용 스킬 | 모델 |
 |----------|------|-----------|------|
@@ -267,6 +272,7 @@ chmod +x .claude/skills/wiki-ingest/scripts/*.sh metrics/cost-report.py
 | **wiki-linter** | 건강 검진 — 링크·망각·신뢰도 감사, 승격 후보, 모순 검사 | wiki-lint, wiki-consolidate, wiki-moc | opus |
 | **wiki-cartographer** | MoC 네비게이션 — 허브 생성·갱신, L3/L4 편입, 도달성 점검 | wiki-moc | opus |
 | **wiki-consolidator** | 기억 통합 — L1→L2 압축, L2→L3→L4 승격, 신뢰도 재계산 + **lazy 후속 배치 병합**(기존 페이지 통합·관계 구조화·중복 초안 정리) | wiki-consolidate, wiki-moc | opus |
+| **meeting-scribe** | 전사문 → 회의록 — 결정·액션·미결 분리, 근거 있을 때만 발언 귀속. 2만 자 전사문을 격리 컨텍스트에서 소비 | meeting-minutes | **sonnet** |
 
 > **모델 라우팅(v2.1):** 인제스트는 추출·파일쓰기 위주라 **sonnet**(빈번한 경로를 싸게). 병합 판단·종합·감사 같은 고추론은 나머지 4개 에이전트가 **opus**로. 측정상 인제스트 페이지당 실질비용 ~4.6×↓·지연 ~3×↓.
 
@@ -282,7 +288,7 @@ skills: [wiki-ingest, wiki-moc]   # 이 에이전트가 쓰는 스킬 (구성 �
 ```
 본문 섹션: `핵심 역할` · `작업 원칙` · `입력/출력 프로토콜` · `이전 산출물이 있을 때` · `에러 핸들링` · `협업`.
 
-### 5-2. 스킬 (6개)
+### 5-2. 스킬 (8개)
 
 | 스킬 | 유형 | 하는 일 |
 |------|------|---------|
@@ -292,6 +298,8 @@ skills: [wiki-ingest, wiki-moc]   # 이 에이전트가 쓰는 스킬 (구성 �
 | **wiki-lint** | 워크플로우 | 스크립트 검사 → 망각·신뢰도·supersession 감사 → 배치 승격 → 추론 검사 |
 | **wiki-moc** | 워크플로우 | MoC 허브 구조·계층·편입·도달성 |
 | **wiki-consolidate** | 워크플로우 | 4계층 승격 (L1→L2→L3→L4) + **lazy 후속 배치 병합**(신뢰도·관계·기존 통합) |
+| **weekly-review** | 워크플로우 | 주간 리뷰 자동 생성 — 완료·미결·stale·다음주 우선순위 → query 페이지 파일링 |
+| **meeting-minutes** | 워크플로우 | 녹음 → 전사 → 회의록. **회의 민감도로 백엔드 분기**(로컬 온디바이스 / OpenAI API) |
 
 오케스트레이터 frontmatter는 **`orchestrates:` 배열**로 조율하는 에이전트를 선언:
 ```yaml
@@ -318,6 +326,27 @@ orchestrates: [wiki-ingestor, wiki-synthesizer, wiki-linter, wiki-cartographer, 
 | `wiki-status-check.py` | wiki-lint/scripts | SessionStart 훅 — lint 경과·L1·미인제스트 알림 |
 | `search.py` | wiki-lint/scripts | grep 기반 위키 본문 검색 |
 | `cost-report.py` | metrics/ | 문서당 토큰·모델가중 비용 리포트 |
+| `transcribe.py` | meeting-minutes/scripts | 녹음 전사 (로컬/OpenAI) — ffmpeg 정규화·청크·타임스탬프 |
+| `apikey.py` | meeting-minutes/scripts | OpenAI 키 해석·키체인 저장·인증 테스트 |
+
+### 5-4. 회의록 파이프라인 — 외부 전송을 코드로 막는다
+
+`meeting-minutes`는 다른 스킬과 성격이 하나 다르다. **오디오를 외부로 보낼지 말지**라는 되돌릴 수 없는 결정을 포함한다.
+
+판정은 회의 성격으로 한다 — 인사·평가·**심사**·계약·개인정보·보안·고객사 기밀은 **로컬 온디바이스**(mlx-whisper), 일반 업무회의·기술 논의·일정 조율만 OpenAI API. **애매하면 로컬**이다. 오분류 비용이 비대칭이기 때문이다: 로컬 오분류는 시간만 더 들지만, OpenAI 오분류는 되돌릴 수 없다(삭제해도 캐시·색인이 남을 수 있다).
+
+이 규칙을 SKILL.md에만 적으면 잊힌다. 그래서 스크립트가 `--confirm-upload` 없이는 openai 백엔드를 **실행 자체를 거부**한다. 플래그를 붙이는 행위가 곧 판정을 마쳤다는 기록이 된다.
+
+```bash
+$ transcribe.py --backend openai --input 회의.m4a
+openai 백엔드는 오디오를 외부 서버로 전송한다.
+민감 회의(인사·평가·심사·계약·개인정보)라면 --backend local 을 쓰라.
+exit=1     # 네트워크 호출 0회
+```
+
+산출물은 둘로 나뉜다. **전사 원문**은 `raw/meetings/transcripts/`에 근거로 보존하고, **회의록**만 `raw/meetings/`에 남겨 위키로 인제스트한다. 63분 녹음은 2만 자를 넘어 회의록의 가독성을 파괴하고 인제스트 토큰을 낭비한다. 회의록 작성은 `meeting-scribe`에 위임해 메인 컨텍스트가 전사문으로 오염되지 않게 한다.
+
+> **화자 분리는 지원하지 않는다.** Whisper 계열은 "누가 말했는지"를 출력하지 않는다. `meeting-scribe`는 근거(호명·자기소개·역할 명시)가 있을 때만 발언을 귀속하고, 나머지는 화자 없이 기록한다. 심사·평가 회의에서 잘못된 발언 귀속은 내용 누락보다 해롭기 때문이다.
 
 ---
 
@@ -590,7 +619,7 @@ title: <한국어 제목>
 aliases: []                  # 영문 파일명의 한국어 라벨/별칭
 tags: []                     # 소문자, 예: [llm, training]
 created: YYYY-MM-DD
-updated: YYYY-MM-DD           # 편집 시 갱신 (PostToolUse 훅이 자동 스탬프)
+updated: 2026-08-14
 
 # --- L3/L4 전용 (신뢰도·망각) ---
 confidence: 0.0~1.0          # confidence.py로 계산
