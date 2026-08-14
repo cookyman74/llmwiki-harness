@@ -1,7 +1,7 @@
 ---
 name: wiki-ops
 description: Orchestrator for operating this Obsidian vault as an LLM wiki (v2 — tiered memory). Routes vault work to the right specialist — ingest a source, query the wiki, lint/health-check, maintain MoC navigation, or consolidate memory (L1→L2→L3→L4). Use for any wiki operation — "소스 인제스트/파일링", "위키에 질문", "위키 점검/린트", "MoC 갱신", "세션 종료/L1 압축/통합/승격", and follow-ups like "다시 실행/재실행/업데이트/보완/이전 결과 기반으로". 위키 내용을 묻는 질문은 wiki-synthesizer로 위임(브리핑·보고·종합 포함) — 하네스 사용법·단일값 조회 같은 사소한 것만 직접 응답.
-orchestrates: [wiki-ingestor, wiki-synthesizer, wiki-linter, wiki-cartographer, wiki-consolidator]
+orchestrates: [wiki-ingestor, wiki-synthesizer, wiki-linter, wiki-cartographer, wiki-consolidator, meeting-scribe]
 ---
 
 # wiki-ops — LLM 위키 오케스트레이터 (v2)
@@ -39,8 +39,11 @@ raw/  →  L1-working  →  L2-episodic  →  L3-semantic  →  L4-procedural
 | 위키 점검·린트·망각·신뢰도 | `wiki-linter` | wiki-lint (+wiki-consolidate, decay.py) |
 | MoC 생성·갱신·네비 정리 | `wiki-cartographer` | wiki-moc |
 | 세션 종료·L1 압축·L2→L3→L4 승격 | `wiki-consolidator` | wiki-consolidate |
+| 음성 녹음 전사·회의록 작성 | `meeting-scribe` | meeting-minutes |
 
 호출: `Agent(subagent_type="<전문가>", prompt="<작업+대상>")`. 오래 걸리면 `run_in_background: true`. 결과는 반환값 수집.
+
+> **녹음 라우팅 주의.** 전사는 `meeting-scribe`가 하지 않는다 — 백엔드 선택(로컬 vs OpenAI)이 **오디오를 외부로 보낼지의 비가역 결정**이라 사람 확인이 필요하다. 오케스트레이터가 `meeting-minutes` 스킬의 판정표로 분류하고, OpenAI면 사용자에게 확인받은 뒤 전사를 실행한다. `meeting-scribe`는 **완성된 전사문에서 회의록을 쓰는 단계만** 맡는다. 회의록 생성 후 인제스트는 별도 확인 후 `wiki-ingestor`로.
 
 ## 오퍼레이션 흐름
 **Ingest:** 소스 확인 → `wiki-ingestor`(L2 증거 페이지 + L3 통합 + 신뢰도 + 덮어쓰기 + 관계) → 새 L3 페이지 MoC 편입 → index·log 확인 → **비용 기록**(아래) → 신뢰도·대체 포함 보고.
