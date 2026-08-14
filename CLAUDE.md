@@ -57,7 +57,9 @@ Ebbinghaus: 보존율 R=exp(−Δt/S), `decay_class`가 S 결정(아키텍처 �
 
 ## 편집 규칙
 
-- 소스 **본문** immutable — raw/ 내용 수정 금지. **예외:** 인제스트 완료 시 raw 파일 맨 위에 상태 스탬프 frontmatter만 추가/갱신(본문 무변경):
+- **raw 본문 immutable은 `ingest_status: done`인 파일에만 적용.** done인 소스는 위키 사실의 근거이므로 본문 수정 금지(스탬프만 예외). **`done`이 아닌 raw 파일(미스탬프·`pending`·`stale`·`BAD`)은 자유롭게 수정 가능** — 아직 인제스트 근거로 쓰이지 않은 초안이므로 정리·재작성·삭제 모두 허용. 특히 `raw/working/`은 작업용 초안 영역.
+- **재인제스트는 언제든 요청 가능.** `done`인 소스라도 사용자가 재인제스트를 요청하면 수행한다 — 신규 페이지 생성 대신 기존 `wiki_source` 페이지를 갱신하고 `ingested` 날짜만 갱신. done 파일 본문이 바뀌어야 하는 상황이면 먼저 사용자 승인을 받고, 수정 후 `ingest_status: stale`로 낮춰 재인제스트 대상으로 표시한다.
+- 인제스트 완료 시 raw 파일 맨 위에 상태 스탬프 frontmatter만 추가/갱신(본문 무변경):
   ```yaml
   ---
   ingested: YYYY-MM-DD
@@ -65,7 +67,7 @@ Ebbinghaus: 보존율 R=exp(−Δt/S), `decay_class`가 S 결정(아키텍처 �
   ingest_status: done
   ---
   ```
-  이미 `ingest_status: done`이면 재인제스트 — 신규 생성 대신 기존 페이지 갱신하고 `ingested` 날짜만 갱신. 미인제스트 raw 조회: `python3 .claude/skills/wiki-lint/scripts/ingest-status.py`.
+  미인제스트 raw 조회: `python3 .claude/skills/wiki-lint/scripts/ingest-status.py`.
 - 충돌 사실은 삭제 말고 병기(`> [!warning] 상충`) — 대체는 supersession으로.
 - 파일 이동·이름변경은 승인 후에만 (wikilink 깨짐).
 - 편집 시 기존 frontmatter 보존, `updated:` 갱신. 사실 재확인이면 `last_confirmed`도 갱신(망각 리셋).
@@ -96,3 +98,5 @@ Ebbinghaus: 보존율 R=exp(−Δt/S), `decay_class`가 S 결정(아키텍처 �
 | 2026-08-01 | 팩에 관계 포함 | scope-expand.py(pack `## 관계` 줄 추출·코드펜스 추적) | 관계중심 질의(엔티티 현황·차이)가 팩에서 connector 등 관계타겟 놓침 → 새 라우트 대신 팩 내용 보강(+300토큰). 관계질의=관계 실린 사실브리핑. 외부감사(agy) 반영: 펜스 오포착 방지·claim 중복 제외·들여쓰기/하이픈술어 허용 |
 | 2026-08-01 | 일상 응용 + weekly-review | weekly-review 스킬(신설)·README 6.5 응용섹션·concept-wiki-daily-usage(콘텐츠) | 단순 Q&A 넘어 회의·학습·개발·주간리뷰 응용방안(외부 PKM/LLM-wiki 리서치). weekly-review=금요일 주간리뷰 자동화(완료·미결·stale·우선순위→query 파일링) |
 | 2026-08-01 | 스탬프 정규화·검증 | normalize-stamps.py(신설)·ingest-status.py(BAD 값검증) | raw 스탬프가 긴 frontmatter에 묻히거나 값 손상(예: `\bstale`) → 3필드를 맨 위로 정규화(본문 immutable 유지·body md5 대조) + ingest-status가 done/stale/pending 밖 값을 BAD로 노출. 외부감사(agy): 복구가능은 복구·garbage는 유지(done 강제 안 함)·단일줄 가정 문서화 |
+| 2026-08-07 | raw immutable 범위 축소 | 편집 규칙(raw 수정 허용 조건·재인제스트 상시 허용) | immutable을 raw 전체에 적용하니 `raw/working/` 초안 정리조차 막힘 → immutable은 `ingest_status: done`인 소스에만 한정. done 아닌 파일은 자유 수정, 재인제스트는 언제든 요청 가능(done 본문 수정 시 승인+`stale` 강등) |
+| 2026-08-13 | 녹음→회의록 파이프라인 | meeting-minutes 스킬(신설)·meeting-scribe 에이전트(신설)·wiki-ops 라우팅·apikey.py/transcribe.py | 일일노트에 녹음 첨부가 반복되는데 전사 수단이 없었음. 백엔드 2종(로컬 온디바이스 / OpenAI API)을 **회의 민감도로 분기** — 심사·인사·계약은 로컬 강제. 외부 전송은 프롬프트가 아닌 `--confirm-upload` 플래그로 코드 차단(규칙은 잊히지만 코드는 안 잊힘). API 키는 `~/Downloads/security.json` → macOS 키체인으로 이전 |

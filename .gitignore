@@ -24,3 +24,8 @@ CLAUDE.local.md
 .DS_Store
 **/__pycache__/**
 *.pyc
+
+# 작업 큐·중간 산출물 (needs-confirm 등 볼트 콘텐츠 포함)
+_workspace/**
+# 런타임 락
+.claude/scheduled_tasks.lock
