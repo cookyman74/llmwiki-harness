@@ -16,6 +16,19 @@ description: 음성 녹음(m4a·mp3·wav)을 전사해 회의록 노트로 만�
 
 ## Phase 0 — 컨텍스트 확인
 
+**미처리 녹음 일람은 스크립트가 준다** (SessionStart 훅이 자동 호출하므로 대개 이미 알고 있다):
+
+```bash
+python3 .claude/skills/meeting-minutes/scripts/pending-recordings.py .
+#   NEW          전사문 없음           → 전사부터 (백엔드 판정 필요)
+#   TRANSCRIBED  전사문 O · 회의록 X    → 회의록만 작성 (전사 재실행 금지)
+#   DONE         회의록이 그 녹음 참조   → 완료
+```
+
+판정 근거는 파일명 규칙이 아니라 frontmatter의 명시적 참조다 — 전사문의 `source_audio:`, 회의록의 `recording:`. 파일을 옮겨도 연결이 깨지지 않는다.
+
+> **전사·회의록 작성은 자동화하지 않는다.** 훅은 *감지와 알림*까지만 한다. 백엔드 판정(Phase 1)은 되돌릴 수 없는 결정이고 회의 성격은 파일명으로 알 수 없으므로, 반드시 사용자에게 물어본 뒤 진행한다. 무인 자동 전사를 원한다면 `references/auto-watch.md`(로컬 전사 한정) 참조.
+
 1. 대상 오디오를 특정한다. 일일노트의 `![[Recording *.m4a]]` 임베드, `raw/assets/` 최신 파일, 또는 사용자 지정 경로.
 2. `raw/meetings/transcripts/`에 같은 파일의 전사문이 이미 있는지 확인한다.
    - **있고 + 회의록 수정 요청** → 전사 건너뛰고 회의록만 재작성 (전사는 비싸다. 재실행 금지)
