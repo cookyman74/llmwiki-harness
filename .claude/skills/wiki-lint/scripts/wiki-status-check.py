@@ -37,6 +37,20 @@ def run(script, *args):
         return ""
 
 
+def run_skill(skill, script, *args):
+    """다른 스킬의 스크립트를 호출한다 (예: meeting-minutes/pending-recordings.py)."""
+    path = os.path.join(ROOT, ".claude", "skills", skill, "scripts", script)
+    if not os.path.isfile(path):
+        return ""
+    try:
+        r = subprocess.run([PY, path, ROOT, *args],
+                           capture_output=True, text=True, encoding="utf-8",
+                           errors="replace", timeout=60)
+        return r.stdout
+    except Exception:
+        return ""
+
+
 def main():
     msgs = []
 
@@ -62,6 +76,23 @@ def main():
     pending = int(mp.group(1)) if mp else 0
     if pending > 0:
         msgs.append(f"raw/에 미인제스트 소스 {pending}개 — `wiki-ops`로 인제스트 권장.")
+
+    # 미처리 녹음 (raw/assets/ 오디오 → 전사문 → 회의록)
+    rec = run_skill("meeting-minutes", "pending-recordings.py", "--json")
+    try:
+        rj = json.loads(rec) if rec.strip() else {}
+    except Exception:
+        rj = {}
+    rec_new = int(rj.get("new") or 0)
+    rec_tr = int(rj.get("transcribed_only") or 0)
+    if rec_tr > 0:
+        msgs.append(f"전사만 끝난 녹음 {rec_tr}건 — 회의록 미작성. `meeting-minutes`로 작성 권장(전사 재실행 불필요).")
+    if rec_new > 0:
+        names = [r["audio"] for r in rj.get("rows", []) if r.get("state") == "NEW"][:3]
+        hint = ", ".join(names) + ("…" if rec_new > 3 else "")
+        msgs.append(f"미처리 녹음 {rec_new}건 ({hint}) — 회의록 미작성. "
+                    f"`meeting-minutes`로 처리 권장. **백엔드(로컬/외부)는 회의 성격에 따라 사람이 판정**하므로 "
+                    f"자동 전사하지 않는다 — 사용자에게 회의 성격을 물어볼 것.")
 
     # 페이지 포맷 오염
     val = run("validate-pages.py", "--json")
