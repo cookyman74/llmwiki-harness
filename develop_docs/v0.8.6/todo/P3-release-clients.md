@@ -1,7 +1,7 @@
 # P3 — 배포·클라이언트 매트릭스: README · 규칙 스니펫 · npm publish · 실측 · 릴리즈
 
 ```
-status: review             # not-started | in-progress | review | done — **배포 차단**: 1차 외부리뷰 BLOCKER 5건 반영 완료, 잔여 미충족(라우팅 지표·Gemini/Cursor 실사용·Windows 실셸·publish 승인)은 문서화. 2차 리뷰 후 done 판정
+status: review             # not-started | in-progress | review | done — **배포 차단(코드·문서 작업 완료, CI 6/6 녹색)**: 1차 외부리뷰 BLOCKER 5건 반영 완료, 잔여 미충족(라우팅 지표·Gemini/Cursor 실사용·Windows 실셸·publish 승인)은 문서화. 2차 리뷰 후 done 판정
 started: 2026-09-09
 completed:
 external_review: 1차 done → review/P3-codex-2026-09-09.md (배포 불가 판정, BLOCKER 5·MAJOR 6·MINOR 3 전건 판정·반영) · 2차 pending
