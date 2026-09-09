@@ -23,8 +23,7 @@
     "clean": "node -e \"require(\\\"node:fs\\\").rmSync(\\\"dist\\\",{recursive:true,force:true})\""
   },
   "dependencies": {
-    "@modelcontextprotocol/sdk": "1.30.0",
-    "zod": "4.5.4"
+    "@modelcontextprotocol/sdk": "1.30.0"
   },
   "devDependencies": {
     "@eslint/js": "10.0.1",

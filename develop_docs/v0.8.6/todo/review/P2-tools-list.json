@@ -1,0 +1,340 @@
+{
+  "instructions": "llmwiki: read-only retrieval over an Obsidian LLM-wiki vault. Never write; filing/ingest/lint happen inside the vault's own tooling.\nRouting: single lookup → wiki_expand(max≤6), answer from seeds · factual briefing/comparison → wiki_expand(rerank=11) then wiki_pack · procedure/how-to → wiki_expand(max=8) then wiki_read_page.\nAlways cite confidence from the pack/frontmatter; if a page is status: stale, follow superseded_by and prefer the active page. Prefer wiki_pack claims over full page reads.",
+  "tools": [
+    {
+      "name": "wiki_search",
+      "description": "Lexical file ranking over the llmwiki vault (read-only). Returns pages matching any keyword, sorted by distinct-keyword count then total hits. Fallback when wiki_expand yields too few candidates.\n위키 본문+aliases 키워드 검색(파일 단위 랭킹). 보통은 wiki_expand 를 먼저 쓰고, 후보가 빈약할 때 fallback 으로 쓴다.\nRouting: fallback only — after wiki_expand returned too few candidates.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "terms": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 64
+            },
+            "minItems": 1,
+            "maxItems": 10,
+            "description": "Keywords (2–4 recommended, add synonyms/variants; Korean and English both fine). Matched case-insensitively against page body and aliases."
+          },
+          "top": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 50,
+            "description": "Max rows (cap, not fill) (default 8)"
+          }
+        },
+        "required": [
+          "terms"
+        ]
+      },
+      "outputSchema": {
+        "type": "object",
+        "properties": {
+          "text": {
+            "type": "string",
+            "description": "Same text as the Python search.py --files output"
+          },
+          "rows": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "distinct": {
+                  "type": "integer"
+                },
+                "total": {
+                  "type": "integer"
+                },
+                "slug": {
+                  "type": "string"
+                },
+                "type": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "distinct",
+                "total",
+                "slug",
+                "type"
+              ]
+            }
+          },
+          "matched": {
+            "type": "integer",
+            "description": "Rows before the top cap"
+          },
+          "truncated": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "text",
+          "rows",
+          "matched",
+          "truncated"
+        ]
+      }
+    },
+    {
+      "name": "wiki_expand",
+      "description": "Graph-expanded candidates (read-only): lexical seeds → 1-hop neighbors → MoC members, optional BM25 rerank. Returns slugs with tier and a suggested_next hint.\n질의 시작점. 키워드→seed→관계 1홉→MoC 확장(옵션 rerank). suggested_next 를 따라 다음 도구를 고른다.\nRouting: FIRST call for every wiki question, then follow suggested_next (single lookup → wiki_expand(max≤6), answer from seeds · factual briefing/comparison → wiki_expand(rerank=11) then wiki_pack · procedure/how-to → wiki_expand(max=8) then wiki_read_page).",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "terms": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 64
+            },
+            "minItems": 1,
+            "maxItems": 10,
+            "description": "Keywords (2–4 recommended, add synonyms/variants; Korean and English both fine). Matched case-insensitively against page body and aliases."
+          },
+          "max": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 50,
+            "description": "Expansion pool cap (default 15)"
+          },
+          "top_seed": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 20,
+            "description": "Number of lexical seeds (default 6)"
+          },
+          "rerank": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 50,
+            "description": "0 = no rerank; 11 recommended for factual briefings (default 0)"
+          }
+        },
+        "required": [
+          "terms"
+        ]
+      },
+      "outputSchema": {
+        "type": "object",
+        "properties": {
+          "text": {
+            "type": "string"
+          },
+          "rows": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "tier": {
+                  "type": "string",
+                  "enum": [
+                    "seed",
+                    "1hop",
+                    "moc"
+                  ]
+                },
+                "refs": {
+                  "type": "integer"
+                },
+                "score": {
+                  "type": "number"
+                },
+                "slug": {
+                  "type": "string"
+                },
+                "type": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "tier",
+                "slug",
+                "type"
+              ]
+            }
+          },
+          "suggested_next": {
+            "type": "string",
+            "enum": [
+              "wiki_pack",
+              "wiki_read_page",
+              "answer"
+            ]
+          },
+          "truncated": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "text",
+          "rows",
+          "suggested_next",
+          "truncated"
+        ]
+      }
+    },
+    {
+      "name": "wiki_pack",
+      "description": "Context pack for candidate pages (read-only): type · confidence · status + claims + relations. Cite confidence; if stale, follow superseded_by. If claims suffice, do NOT read full pages.\n후보 slug 의 claims·confidence·status·관계 팩. confidence 병기, stale 은 superseded_by 추적, 충분하면 full-read 금지.\nRouting: after wiki_expand(rerank=11) for factual briefings/comparisons; usually the last call.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "slugs": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 120
+            },
+            "minItems": 1,
+            "maxItems": 30,
+            "description": "Page slugs from wiki_expand (file names without .md; [[…]] brackets are tolerated)"
+          }
+        },
+        "required": [
+          "slugs"
+        ]
+      },
+      "outputSchema": {
+        "type": "object",
+        "properties": {
+          "text": {
+            "type": "string"
+          },
+          "pages": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "slug": {
+                  "type": "string"
+                },
+                "found": {
+                  "type": "boolean"
+                },
+                "type": {
+                  "type": "string"
+                },
+                "confidence": {
+                  "type": "string"
+                },
+                "status": {
+                  "type": "string"
+                },
+                "claims": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "summary": {
+                  "type": "string"
+                },
+                "relations": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                }
+              },
+              "required": [
+                "slug",
+                "found",
+                "type",
+                "confidence",
+                "status",
+                "claims",
+                "summary",
+                "relations"
+              ]
+            }
+          },
+          "truncated": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "text",
+          "pages",
+          "truncated"
+        ]
+      }
+    },
+    {
+      "name": "wiki_read_page",
+      "description": "Full text of one wiki page (read-only, frontmatter included, 200 KB cap). Use only for procedure/how-to questions or to verify a specific claim the pack could not settle. Do not use it to browse in factual briefings.\n페이지 전문 read. 절차·how-to 또는 팩이 불충분한 특정 주장 확인에만. 사실브리핑에서 남발 금지.\nRouting: after wiki_expand(max=8) for procedures, or to verify one claim the pack could not settle.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "slug": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 120,
+            "description": "Page slug (file name without .md). Aliases are resolved once."
+          }
+        },
+        "required": [
+          "slug"
+        ]
+      },
+      "outputSchema": {
+        "type": "object",
+        "properties": {
+          "slug": {
+            "type": "string"
+          },
+          "resolved_from_alias": {
+            "type": "boolean"
+          },
+          "path": {
+            "type": "string",
+            "description": "Relative to the vault root"
+          },
+          "frontmatter": {
+            "type": "object",
+            "properties": {
+              "type": {
+                "type": "string"
+              },
+              "confidence": {
+                "type": "string"
+              },
+              "status": {
+                "type": "string"
+              },
+              "superseded_by": {
+                "type": "string"
+              },
+              "last_confirmed": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "type",
+              "confidence",
+              "status"
+            ]
+          },
+          "text": {
+            "type": "string"
+          },
+          "truncated": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "slug",
+          "resolved_from_alias",
+          "path",
+          "frontmatter",
+          "text",
+          "truncated"
+        ]
+      }
+    }
+  ]
+}

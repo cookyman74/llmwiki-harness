@@ -45,7 +45,8 @@ tools/llmwiki-mcp/
 │   ├── pack.ts           pack()
 │   ├── read.ts           readPage() — slug 검증·경로 제한
 │   ├── format.ts         Python stdout과 동일한 텍스트 렌더러(패리티용)
-│   ├── server.ts         MCP 서버·도구 등록·description·instructions
+│   ├── tools.ts          도구 4개 계약(수기 JSON Schema 부분집합·description·instructions) + 입력 정규화·검증·상한
+│   ├── server.ts         저수준 Server: tools/list·tools/call 핸들러(once.ts 함수 재사용), stdio 기동, DEBUG 타이밍
 │   ├── print-config.ts   클라이언트별 등록 스니펫 생성(출력만, 파일 쓰기 없음)
 │   └── cli.ts            인자 파싱(--root/--version/--selftest/--once/print-config) → server 기동
 ├── test/
@@ -56,7 +57,8 @@ tests/parity.py           (저장소 루트, 기존 smoke.py 옆) Python↔Node 
 ```
 
 - 저장소는 하네스(`llmwiki-harness`). 볼트에는 설치하지 않는다 — 볼트는 `--root` 데이터일 뿐.
-- 런타임 의존성은 `@modelcontextprotocol/sdk`, `zod`(스키마) 둘만. 빌드 산출물 `dist/`를 퍼블리시.
+- 런타임 의존성은 `@modelcontextprotocol/sdk` **하나**. 빌드 산출물 `dist/`를 퍼블리시.
+  > **P2 결정(2026-09-09, 실측 근거)**: 원안은 `McpServer` + zod 였으나, 인프로세스 클라이언트로 `tools/list` 를 덤프해 보니 SDK 1.30 의 zod4 경로(`z4mini.toJSONSchema`)가 `$schema`·`additionalProperties:false`·`execution:{taskSupport}` 를 자동 삽입해 §3 "스키마 부분집합" 규칙을 어겼다. 저수준 `Server`(`setRequestHandler(ListTools/CallTool)`) 에 **수기 JSON Schema**(`src/tools.ts`)를 주면 쓴 그대로 나간다 → 채택. 잃는 것: SDK 의 `structuredContent`↔`outputSchema` 자동 검증(단위 테스트 P2-09 로 대체)과 zod 입력 검증(런타임 정규화·검증 함수로 대체 — 원래 §3 이 요구한 방식). zod 는 런타임 의존에서 제거(SDK 내부 의존으로만 존재).
 - Node ≥ 20 (lookbehind·`\p{}`·`fs.promises` 안정). 개발 환경 v24.
 
 ## 3. 도구 계약
@@ -127,7 +129,7 @@ description 요지: "**confidence를 답에 병기**하고, `status: stale`이�
 |---|---|---|
 | `slug` | string | 파일명(확장자 없음) |
 
-검증: `^[\p{L}\p{N}._\- ]{1,120}$`(u) 이고 `/`·`\`·`..` 불포함. `wiki/**` 아래에서 slug 일치 파일을 찾아(walk 순서·마지막 승) `realpath`가 `<root>/wiki/` 접두를 벗어나면 거부.
+검증(**P2 개정 2026-09-09**): 길이 1~120, `/`·`\`·`..`·제어문자(`\p{Cc}`) 불포함 — 원안의 문자 클래스 `^[\p{L}\p{N}._\- ]+$` 는 기호 포함 파일명(`zz-🦀-crab`)을 거부해 `wiki_expand → wiki_pack` 흐름을 끊었다(P2 단위테스트 검출). 경계 보장은 문자 클래스가 아니라 walk 인덱스 조회 + `realpath`/`path.relative` 판정이 맡는다. `wiki/**` 아래에서 slug 일치 파일을 찾아(walk 순서·마지막 승) `realpath`가 `<root>/wiki/` 밖이면 거부.
 없는 slug: 그래프의 `alias2slug`(소문자 키)로 1회 리다이렉트 시도(Python `pack`에는 없는 동작이지만 read_page는 신규 도구라 패리티 대상 아님). 그래도 없으면 `isError: true` + `"page not found: <slug>"`.
 출력: 파일 전문(frontmatter 포함). JSON: `{slug, resolved_from_alias?, path(상대), frontmatter:{type,confidence,status,superseded_by?,last_confirmed?}, text}`.
 description 요지: "절차·how-to 또는 팩이 불충분한 특정 주장 확인에만. 사실브리핑에서 남발 금지."
@@ -175,7 +177,14 @@ description 요지: "절차·how-to 또는 팩이 불충분한 특정 주장 확
 - **쓰기 API 0개.** `fs` import는 `readFile`·`readdir`·`stat`·`realpath`만. CI에서 `grep -E "writeFile|appendFile|unlink|rename|mkdir|rm(Sync)?\(" src/`가 0건이어야 통과.
 - **순회 단계 심볼릭 링크 차단(외부리뷰 #1, BLOCKER).** `read_page`만 검증하면 부족하다 — `buildGraph`의 `walkMd`가 `wiki/leak.md → ../CLAUDE.local.md` 같은 링크를 읽어 그래프에 적재하면 `wiki_search`·`wiki_pack`으로 유출된다. `walkMd`는 `readdir({withFileTypes})`에서 **심볼릭 링크 엔트리(파일·디렉터리 모두)를 건너뛰고**, 추가로 각 `.md`의 `realpath`가 `<root>/wiki/` 하위가 아니면 제외한다(stderr 경고 1줄, 내용 로그 금지). Python 정본은 이 검증이 없으나 픽스처에는 심볼릭 링크를 두지 않으므로 패리티에 영향 없음. 실 볼트 한계에 "wiki/ 안 심볼릭 링크는 무시됨" 기재.
 - **경로 제한.** 모든 파일 접근은 `<root>/wiki/` 하위 실경로만. `wiki_read_page`는 §3.4 검증. `--root` 자체는 `realpath`로 정규화. 접두 비교는 문자열 `startsWith`가 아니라 `path.relative(wikiReal, targetReal)`이 `..`로 시작하지 않고 절대경로가 아닌지로 판정(Windows 구분자·대소문자 무시 FS·`wiki2/` 같은 접두 우회 방지).
-- **입력 상한.** terms ≤10개·각 ≤64자, slugs ≤30, 응답 텍스트 ≤ 200KB(초과 시 절단 + `truncated: true`).
+- **입력 상한.** terms ≤10개·각 ≤64자, slugs ≤30, 응답 텍스트 ≤ 200KB **UTF-8 바이트**(코드포인트 경계 보존, 초과 시 절단 + `truncated: true`). pack 의 `structuredContent.pages` 도 같은 예산(P2 리뷰: text 만 자르면 우회).
+- **자원 상한(P2 리뷰).** 파일 1개 ≤16MiB, 파일 수 ≤20,000 — 초과 시 결과를 조용히 바꾸지 않고 `VaultLimitError`(도구 isError / `--once` exit 1). 동시 도구 호출 ≤4(세마포어).
+- **TOCTOU 완화(P2 리뷰).** `read()` 는 `O_NOFOLLOW` 로 열어 realpath 검사 뒤 최종 구성요소가 링크로 바뀌어도 따라가지 않는다(POSIX; Windows 는 상수 없음). 상위 디렉터리 교체 경쟁은 로컬 단일 사용자 도구 범위에서 수용 — 원격/멀티테넌트 노출 시 재검토.
+- **읽기 전용 가드는 허용목록.** CI 가 `src/` 의 `fs.*`/`fh.*` 멤버를 추출해 readFile·readdir·stat·realpath·open(읽기 플래그)·close·constants 외면 실패. 대괄호 접근·동적 접근 금지.
+- **print-config 안전.** 서버 이름 `^[A-Za-z][A-Za-z0-9_-]{0,63}$`(셸·TOML 삽입), root 개행·NUL 거부. **Windows 출력은 볼트 경로를 명령 인자에 넣지 않는다**(`cmd /c` 가 `&`·`|`·`%VAR%` 해석) — env 전달만. CLI 형의 `--env` 값은 cmd.exe 인용(`%`→`%%`) + PowerShell·지연확장 주의 주석.
+- **볼트 루트 검증(P2 2차 리뷰).** `resolveRoot` 를 서버·`--selftest`·`--once` 가 공유: root realpath, `wiki/` 는 **비링크 디렉터리**이고 `realpath(wiki) == <rootReal>/wiki` — `root/wiki → 외부` 링크가 walkMd 경계를 통째로 우회하던 결함 차단. 오류 메시지는 입력 문자열만 반영(realpath 비노출), `--selftest` 는 basename+해시(`--show-root` 로 전체).
+- **원시 입력 가드.** terms/slugs 문자열 ≤4,096자·배열 ≤256항목을 분할·순회 **전에** 검사. 볼트: 파일 ≤20,000·디렉터리 ≤5,000·깊이 ≤32·누적 텍스트 ≤512MiB·파일 ≤16MiB.
+- **`--once` 계약.** Python 패리티 도구이므로 200KB 절단을 적용하지 않는다. P2-33 "같은 코드 경로" = 절단 전 리트리벌 텍스트 동일.
 - **콘텐츠 비유출.** 패키지 `files` 화이트리스트(`dist/`, `README.md`). CI에서 `npm pack --dry-run` 목록에 `.md`가 README 외 0개.
 - **로그.** stdout은 MCP 전용. 진단은 stderr, 기본 quiet. `LLMWIKI_DEBUG=1`이면 도구별 소요(ms)만 — 질의어·페이지 내용은 로그 금지.
 

@@ -7,7 +7,7 @@
  * - slug→path 는 walk 순서 마지막 승(#1).
  */
 import path from "node:path";
-import { PY_WS_CLASS, field, frontmatter, pyLower, pyStrip, read, splitN, walkMd } from "./vault.js";
+import { PY_WS_CLASS, VaultLimitError, field, frontmatter, pyLower, pyStrip, read, splitN, walkMd } from "./vault.js";
 
 export interface PackPage {
   slug: string;
@@ -58,8 +58,13 @@ export function extractRelations(text: string): string[] {
   return out;
 }
 
+/** pack 누적 원문 예산(codex 3차 MAJOR-3): 30 slug × 16MiB 를 다 읽고 나서 자르면 수백 MB 가 이미 메모리에 올라온다.
+ *  페이지를 하나 읽을 때마다 누적을 확인해 초과하면 **다음 페이지를 읽지 않고** 실패한다. */
+export const PACK_TOTAL_BYTES = 32 * 1024 * 1024;
+
 export async function pack(slugs: string[], root: string): Promise<PackPage[]> {
   const base = path.join(root, "wiki");
+  let consumed = 0;
   const idx = new Map<string, string>();
   for (const f of await walkMd(base)) idx.set(f.slug, f.path); // 마지막 승
   const pages: PackPage[] = [];
@@ -70,6 +75,8 @@ export async function pack(slugs: string[], root: string): Promise<PackPage[]> {
       continue;
     }
     const text = await read(p);
+    consumed += Buffer.byteLength(text, "utf8");
+    if (consumed > PACK_TOTAL_BYTES) throw new VaultLimitError(`pack input exceeds ${PACK_TOTAL_BYTES} bytes across the requested slugs`);
     const fm = frontmatter(text);
     const claims = extractClaims(text);
     pages.push({

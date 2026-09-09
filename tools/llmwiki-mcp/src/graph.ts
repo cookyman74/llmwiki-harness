@@ -5,7 +5,7 @@
  * 아니면 alias2slug[lower] 로 정규화. 자기 링크 제외. 중복 slug 는 walk 순서상 **마지막 승**(dict 대입).
  */
 import path from "node:path";
-import { field, frontmatter, parseAliases, pyLower, pyStrip, readAll, walkMd } from "./vault.js";
+import { field, frontmatter, parseAliases, pyLower, pyStrip, readAll, walkMd, type MdFile } from "./vault.js";
 
 /** Python `LINK = re.compile(r"(?<!!)\[\[([^\]|#]+)")` — `![[…]]` 임베드 제외. #7 */
 export const LINK_RE = /(?<!!)\[\[([^\]|#]+)/g;
@@ -23,8 +23,9 @@ export interface Graph {
   alias2slug: Map<string, string>;
 }
 
-export async function buildGraph(base: string): Promise<Graph> {
-  const files = await walkMd(base);
+/** `files` 를 주면 walkMd 를 생략한다(read_page 가 이미 순회한 목록 재사용 — 리뷰: 이중 순회). */
+export async function buildGraph(base: string, files?: MdFile[]): Promise<Graph> {
+  files ??= await walkMd(base);
   const texts = await readAll(files);
   const nodes = new Map<string, Node>();
   const alias2slug = new Map<string, string>();

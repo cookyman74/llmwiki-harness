@@ -51,6 +51,13 @@ external_review:           # pending | done → review/P3-agy-YYYY-MM-DD.md
 - [ ] P3-24 `tests/parity.py --vault` 실행 결과 릴리즈 노트에 1줄
 - [ ] P3-25 롤백 절차 확인 — `claude mcp remove llmwiki` 등 클라이언트별 제거 명령 README 에 수록, npm `deprecate` 절차 기록
 
+### 이월 항목 (P2 외부리뷰에서 P3 로)
+- [ ] P3-26+ (codex P2 1차 M8·2차) 클라이언트 5종 실측은 P3-11~17 이 그 자체 — 실측 시 `tools/list` 스키마 수용 여부(integer·enum·minLength)와 `structuredContent` 미지원 클라이언트의 text-only 동작을 로그에 남긴다
+- [ ] P3-27+ (codex P2 2차 #8) 독립 JSON Schema 검증기(ajv, devDependency)로 `review/P2-tools-list.json` 의 스키마 자체와 4도구 샘플 응답을 교차 검증하는 테스트 추가
+- [ ] P3-28+ (agy P2 2차 m5) `TOOLS` outputSchema ↔ TS 타입의 정적 연결(단일 소스 생성 또는 인터페이스 강제)
+- [ ] P3-29+ (codex P2 2차 #6) Windows 실제 셸(cmd.exe·PowerShell)에서 `print-config --windows` 출력으로 등록이 되는지 매트릭스 1종에서 실측(`%`·`&`·공백 경로)
+- [ ] P3-30+ (codex/agy NFC) README 한계에 macOS NFD 파일명 vs NFC 질의 불일치·대소문자 무시 FS 동작을 명시(P3-01 에 포함)
+
 ## 산출물
 - 패키지 README, `templates/mcp-client-guide.md` + 파생 4종, npm `llmwiki-mcp@0.1.0`, `evidence/P3-*.log`, `P3-routing.csv`, 태그 v0.11.0
 

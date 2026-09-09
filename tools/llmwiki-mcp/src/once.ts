@@ -4,11 +4,11 @@
  */
 import path from "node:path";
 import { bm25Rank } from "./bm25.js";
-import { expand, lexicalSeeds } from "./expand.js";
+import { TIER_NAME, expand, lexicalSeeds } from "./expand.js";
 import { renderExpand, renderNoSeed, renderPack, renderRerank, renderSearch } from "./format.js";
 import { buildGraph } from "./graph.js";
-import { pack } from "./pack.js";
-import { filesMode, normalizeTerms } from "./search.js";
+import { pack, type PackPage } from "./pack.js";
+import { filesMode, normalizeTerms, type SearchRow } from "./search.js";
 
 export interface ExpandOptions {
   root: string;
@@ -57,31 +57,74 @@ export class UsageError extends Error {
   readonly exitCode = 2;
 }
 
-export async function runSearch(rawTerms: string[], root: string, top: number): Promise<string> {
+export interface SearchData {
+  text: string;
+  rows: SearchRow[];
+  matched: number;
+}
+export interface ExpandDataRow {
+  tier: "seed" | "1hop" | "moc";
+  refs?: number;
+  score?: number;
+  slug: string;
+  type: string;
+}
+export interface ExpandData {
+  text: string;
+  rows: ExpandDataRow[];
+}
+export interface PackData {
+  text: string;
+  pages: PackPage[];
+}
+
+/** search 데이터 + Python 동일 텍스트. MCP 도구(P2)와 --once 가 공유한다. */
+export async function searchData(rawTerms: string[], root: string, top: number): Promise<SearchData> {
   if (normalizeTerms(rawTerms).length === 0) {
     throw new UsageError("usage: search.py --files <term> [term ...] [--root .] [--top N]");
   }
   const { terms, rows, matched } = await filesMode(rawTerms, root, top);
-  return renderSearch(terms, rows, matched);
+  return { text: renderSearch(terms, rows, matched), rows, matched };
 }
 
-export async function runExpand(rawTerms: string[], o: ExpandOptions): Promise<string> {
+export async function expandData(rawTerms: string[], o: ExpandOptions): Promise<ExpandData> {
   const G = await buildGraph(path.join(o.root, "wiki"));
   const tl = normalizeTerms(rawTerms); // Python: tl = [t.lower() for t in terms if t.strip()]
   const seeds = lexicalSeeds(G, tl, o.topSeed);
-  if (seeds.length === 0) return renderNoSeed(rawTerms);
+  if (seeds.length === 0) return { text: renderNoSeed(rawTerms), rows: [] };
   const rows = expand(G, tl, seeds, o.max);
+  const typeOf = (s: string): string => G.nodes.get(s)?.type ?? "?";
   if (o.rerank) {
     const pool = rows.map((r) => r.slug);
     const { ranked, scores } = bm25Rank(G, tl, pool);
     const tierOf = new Map(rows.map((r) => [r.slug, r.tier] as [string, number]));
-    return renderRerank(G, ranked.slice(0, o.rerank), scores, tierOf);
+    const top = ranked.slice(0, o.rerank);
+    return {
+      text: renderRerank(G, top, scores, tierOf),
+      rows: top.map((s) => ({ tier: TIER_NAME[tierOf.get(s) as number] as ExpandDataRow["tier"], score: scores.get(s) as number, slug: s, type: typeOf(s) })),
+    };
   }
-  return renderExpand(G, rows);
+  return {
+    text: renderExpand(G, rows),
+    rows: rows.map((r) => ({ tier: TIER_NAME[r.tier] as ExpandDataRow["tier"], refs: r.refs, slug: r.slug, type: typeOf(r.slug) })),
+  };
+}
+
+export async function packData(slugs: string[], root: string): Promise<PackData> {
+  const pages = await pack(slugs, root);
+  return { text: renderPack(pages), pages };
+}
+
+export async function runSearch(rawTerms: string[], root: string, top: number): Promise<string> {
+  return (await searchData(rawTerms, root, top)).text;
+}
+
+export async function runExpand(rawTerms: string[], o: ExpandOptions): Promise<string> {
+  return (await expandData(rawTerms, o)).text;
 }
 
 export async function runPack(slugs: string[], root: string): Promise<string> {
-  return renderPack(await pack(slugs, root));
+  return (await packData(slugs, root)).text;
 }
 
 export async function runOnce(mode: "search" | "expand" | "pack", rest: string[]): Promise<string> {
