@@ -1,10 +1,10 @@
 # P2 — MCP 서버: 도구 4개 · 호환 규칙 · 보안 · CLI 서브커맨드
 
 ```
-status: review             # not-started | in-progress | review | done
+status: done               # not-started | in-progress | review | done
 started: 2026-09-09
-completed:
-external_review: pending   # pending | done → review/P2-*-2026-09-09.md
+completed: 2026-09-09
+external_review: done → review/P2-codex-{2026-09-09,r2-2026-09-09,r3-2026-09-09}.md · P2-agy-{2026-09-09,r2-2026-09-09}.md
 branch: feat/mcp-p2-server (base: feat/mcp-p1-port, PR #20 위에 스택)
 ```
 
@@ -60,7 +60,7 @@ branch: feat/mcp-p2-server (base: feat/mcp-p1-port, PR #20 위에 스택)
 - [x] P2-31 MCP Inspector 로 `tools/list` 4개 · 스키마 · description · instructions 확인(스크린샷 `todo/evidence/P2-inspector.png`) ✅ 2026-09-09 — MCP Inspector **CLI**(`--config`+`--server`, 인라인 명령은 Inspector 파서가 `--root` 를 삼킴)로 실 stdio 검증: tools/list 4개, 스키마 키 `[properties, required, type]` 만, description 477–498자. instructions 는 SDK Client 로 별도 캡처. 증거 evidence/P2-inspector-*.json(로컬) + review/P2-tools-list.json(커밋). ⏸ 스크린샷(png) 대신 JSON 캡처 — 브라우저 미사용
 - [x] P2-32 Inspector 에서 사실브리핑 시나리오 수동 실행 — `wiki_expand(rerank=11)` → `suggested_next=wiki_pack` → `wiki_pack` 텍스트 확인 ✅ 2026-09-09 — Inspector CLI 시나리오: wiki_expand(벡터·인덱스, max 20, rerank 11) → 11행·suggested_next=wiki_pack → wiki_pack 상위 5 → claims 14줄·`[type · conf X · status]` 헤더, isError 없음. evidence/P2-scenario-pack.txt
 - [x] P2-33 `--once` 와 MCP 도구 출력 텍스트 동일성 테스트(같은 코드 경로 증명) ✅ 2026-09-09 — test/unit/p2-33-once-vs-mcp.test.ts: 14질의×4모드 `callTool().content[0].text === runOnce()` 56건. 계약 명시: **절단(200KB) 전 리트리벌 텍스트가 동일** — `--once` 는 Python 패리티 도구라 capText 를 적용하지 않는다(codex 2차 #5)
-- [ ] P2-34 패리티 CI 재실행 녹색(P1 회귀 없음)
+- [x] P2-34 패리티 CI 재실행 녹색(P1 회귀 없음) ✅ 2026-09-09 — PR #21: parity·smoke × ubuntu/macos/windows **6/6 pass**. parity 잡은 `npm run check`(480 tests)+`parity.py`+읽기전용 가드+pack 가드를 포함
 
 ### 추가 항목 (P2 진행 중 발견)
 - [x] P2-35+ (테스트 검출) `normalizeSlug` 의 문자 클래스 `^[\p{L}\p{N}._\- ]+$` 가 wiki_expand 가 돌려주는 기호 포함 slug(`zz-🦀-crab`)를 wiki_pack 에서 거부 → 라우팅 흐름 단절·`--once`≠MCP. "위험 문자만 금지"(`/`·`\`·`..`·`\p{Cc}`)로 변경, DESIGN §3.4 개정 ✅ 2026-09-09
@@ -110,11 +110,11 @@ branch: feat/mcp-p2-server (base: feat/mcp-p1-port, PR #20 위에 스택)
 - `todo/baseline/P2-perf.txt`, `todo/evidence/P2-inspector.png`
 
 ## 완료 기준 (DoD)
-- [ ] A~G 전 항목 완료 또는 사유 명시 — 코드·테스트는 완료(P2-31 스크린샷은 JSON 캡처로 대체). **CI 3-OS 녹색(P2-34) 확인 후 체크**(codex 2차 B2)
+- [x] A~G 전 항목 완료 또는 사유 명시 ✅ 2026-09-09 — CI 3-OS 6/6 확인 후 체크. P2-31 은 브라우저 대신 Inspector CLI JSON 캡처(사유 명시)
 - [x] 보안 테스트(P2-21~23) 전건 통과, 쓰기 API grep 0건 ✅ 2026-09-09
 - [x] 스키마 부분집합·도구명·description 길이·stdout 순수성 테스트 통과 ✅ 2026-09-09
 - [x] Inspector 확인 증거 보관 ✅ 2026-09-09 — evidence/P2-inspector-*.json(로컬)·review/P2-tools-list.json(커밋)
-- [ ] 외부리뷰 완료
+- [x] 외부리뷰 완료 ✅ 2026-09-09 — 3라운드(codex 1·2·3차, agy 1·2차) 지적 40여 건 전건 판정. 잔여 BLOCKER 0(3차 BLOCKER 2건: 가드 별칭 우회→P2-68+, CI 증거→본 항목). 이월 5건 P3-26+~30+
 
 ## 외부리뷰 (단계 종료 시 필수)
 - 대상: `src/server.ts`, `read.ts`, `print-config.ts`, `cli.ts`, 보안 테스트, `tools/list` 덤프(JSON)
