@@ -30,3 +30,5 @@ description: 볼트 밖에서 llmwiki MCP 서버로 LLM 위키에 질의한다 �
 서버가 자기서술한다(도구 description + `suggested_next` + 서버 `instructions`) — 이 스니펫은 준수율 보조이며 없어도 동작해야 한다.
 
 <!-- 아래 `## agy` 절은 조사 노트이며 파생 스니펫 본문에 포함되지 않는다. '20줄 이내' 기준은 **본문(파생 대상)** 에 적용된다. -->
+
+<!-- Codex 비대화형: `codex exec` 는 기본 `approval: never` 라 MCP 도구가 차단된다 → `--approve-for-me` 를 붙여라(0.153.4 실측). -->

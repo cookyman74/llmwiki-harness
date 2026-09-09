@@ -56,7 +56,14 @@ npx llmwiki-mcp print-config --client <claude-code|codex|agy|gemini|cursor|winds
   --root "<VAULT>"
 ```
 
-`print-config` **only prints** — it never edits your client config files (they hold other servers' secrets). It quotes the vault path for you: a path with spaces, Korean characters, or shell metacharacters comes back single-quoted; a plain path comes back bare. Add `--name <server>` to register under a name other than `llmwiki`.
+`print-config` **only prints** — it never edits your client config files (they hold other servers' secrets). How the vault path is escaped depends on the client form:
+
+| Client form | Clients | Escaping |
+|---|---|---|
+| Shell command (POSIX) | `claude-code`, `codex`, `agy` | Safe paths are emitted bare; anything with spaces, Korean characters, or shell metacharacters is wrapped in **single quotes** (`'` becomes `'\''`). Single quotes are the only fully inert quoting in `sh`/`bash` — double quotes would still let `$`, backticks and `!` expand. |
+| JSON config | `gemini`, `cursor`, `windsurf`, `claude-desktop`, `vscode` | The path is a **JSON string value**, escaped by JSON rules. No shell is involved, so shell metacharacters are harmless. |
+| Shell command (Windows) | `claude-code`, `codex`, `agy` with `--windows` | Double quotes with `"` escaped, and the path travels through `LLMWIKI_ROOT` rather than as an argument. `%` cannot be escaped at an interactive `cmd.exe` prompt, so paths containing `%` or `!` are **refused** — use a JSON-config client instead. |
+
 
 Below is the real output for each client, with your vault path written as `<VAULT>`.
 
@@ -151,7 +158,14 @@ Same block for all three; only the file differs — `~/.cursor/mcp.json`, `~/.co
 }
 ```
 
+> **Codex, non-interactive runs.** `codex exec` defaults to `approval: never`, which **blocks MCP tool calls** ("MCP tool call requires approval, but approval policy is never"). Pass `--approve-for-me` so the tools can run: `codex exec --approve-for-me "…"`. Interactive `codex` sessions are unaffected. Measured on 0.153.4 — `-c approval_policy="on-request"` does *not* override it.
+
 ### Windows (`--windows`)
+
+| Client form | What `--windows` changes | Verification status |
+|---|---|---|
+| Shell command (`claude-code`, `codex`, `agy`) | `cmd /c` wrapper; path moves to `--env LLMWIKI_ROOT=…` / `-e …`; `%`/`!` paths refused | **Syntax fixed by unit tests only** — not yet executed in a real `cmd.exe`/PowerShell session |
+| JSON config (`gemini`, `cursor`, `windsurf`, `claude-desktop`, `vscode`) | `cmd /c` wrapper inside `command`/`args`; path in the `env` block (same as POSIX) | **Syntax fixed by unit tests only** |
 
 Add `--windows` to any of the above. Two things change: the command is wrapped in `cmd /c`, and **the vault path is never placed in the command line** — it always travels through `LLMWIKI_ROOT`, because `cmd.exe` expands `%VAR%` even inside double quotes and delayed-expansion sessions also expand `!VAR!`.
 

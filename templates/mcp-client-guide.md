@@ -23,6 +23,8 @@
 
 <!-- 아래 `## agy` 절은 조사 노트이며 파생 스니펫 본문에 포함되지 않는다. '20줄 이내' 기준은 **본문(파생 대상)** 에 적용된다. -->
 
+<!-- Codex 비대화형: `codex exec` 는 기본 `approval: never` 라 MCP 도구가 차단된다 → `--approve-for-me` 를 붙여라(0.153.4 실측). -->
+
 ## agy
 
 `~/.agents/skills/<name>/SKILL.md` (워크스페이스는 `.agents/skills/`) — 2026-09-09 로컬 확인. `agy --help`에 `--disable-slash-commands`("slash command and skill expansion"), 서브커맨드 `plugin`(list·import·install·validate)·`agents`가 있고, 바이너리 내장 문서가 스킬 경로를 `<workspace>/.agents/skills/<name>/SKILL.md`, 규칙 경로를 `AGENTS.md`·`GEMINI.md`·`.agents/rules/*.md`로 서술한다. `~/.agy`·`~/.config/agy`는 없다. 사용자(홈) 경로는 바이너리에 리터럴로 박혀 있지 않지만 `~/.agents/skills/`가 실제로 존재하고 `graphify` 스킬이 거기 설치돼 있다 — 즉 홈 경로는 실측 기반 추정이고, 워크스페이스 경로가 문서화된 정본이다. → 파생 추가: Claude용 `templates/clients/claude-skill/SKILL.md`를 그대로 `~/.agents/skills/llmwiki-query/SKILL.md`에 복사하면 된다(같은 frontmatter+본문 형식). `plugin import`는 gemini/claude 플러그인 가져오기이므로 스킬 1개 배포에는 불필요.

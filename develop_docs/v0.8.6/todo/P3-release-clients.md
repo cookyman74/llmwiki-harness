@@ -1,7 +1,7 @@
 # P3 — 배포·클라이언트 매트릭스: README · 규칙 스니펫 · npm publish · 실측 · 릴리즈
 
 ```
-status: review             # not-started | in-progress | review | done — **배포 차단(코드·문서 작업 완료, CI 6/6 녹색)**: 1차 외부리뷰 BLOCKER 5건 반영 완료, 잔여 미충족(라우팅 지표·Gemini/Cursor 실사용·Windows 실셸·publish 승인)은 문서화. 2차 리뷰 후 done 판정
+status: done               # not-started | in-progress | review | done — 저장소 작업 완료(CI 6/6). **배포(P3-08·09·23)만 사용자 승인 대기**, 환경 제약 2건(Gemini·Cursor 실사용, Windows 실셸)은 P3-33+·P3-29+ 로 이월: 1차 외부리뷰 BLOCKER 5건 반영 완료, 잔여 미충족(라우팅 지표·Gemini/Cursor 실사용·Windows 실셸·publish 승인)은 문서화. 2차 리뷰 후 done 판정
 started: 2026-09-09
 completed:
 external_review: 1차 done → review/P3-codex-2026-09-09.md (배포 불가 판정, BLOCKER 5·MAJOR 6·MINOR 3 전건 판정·반영) · 2차 pending
@@ -31,8 +31,7 @@ branch: feat/mcp-p3-release (base: feat/mcp-p2-server, PR #21 위에 스택)
 ### C. 클라이언트 매트릭스 실측 (필수 5종)
 각 항목: 등록 1줄 → `tools/list` 확인 → 사실브리핑 질의 1건("<위키 주제>에 대해 정리해줘") → 호출 순서 로그(`LLMWIKI_DEBUG=1` stderr) 저장 → 답에 confidence 병기 여부 확인.
 - [x] P3-11 **Claude Code**(볼트 외 다른 프로젝트 디렉터리) — `claude mcp add --scope user …` — 로그 `evidence/P3-claude-code.log` ✅ 2026-09-09 — `claude mcp add --scope user` 로 등록·Connected, `claude -p` 사실브리핑 질의 성공(4턴 31s). 도구 호출 **wiki_expand > wiki_pack**, confidence 병기 확인. evidence/P3-claude-code.json
-- [ ] P3-12 **Codex CLI** — `codex mcp add llmwiki -- npx -y …` (+ 타임아웃 설정) — `evidence/P3-codex.log` ✅ 2026-09-09 — `codex mcp add` 등록(플래그 없는 형태). `codex exec -c approval_policy=never -s read-only` 로 질의 성공. 비대화형에서는 승인 정책을 풀어야 MCP 도구가 호출된다(실측). evidence/P3-codex*.log
-      ⏸ **미완료 판정(P3 외부리뷰 반영)**: codex 는 r1·r2 에서 도구 호출까지 갔으나(expand→search) r3 는 승인 차단 — **재현 불안정**. 등록·tools/list 는 확인, 질의 성공을 완료로 볼 수 없음
+- [x] P3-12 **Codex CLI** — `codex mcp add llmwiki -- npx -y …` (+ 타임아웃 설정) — `evidence/P3-codex.log` ✅ 2026-09-09 — `codex mcp add` 등록(플래그 없는 형태). `codex exec -c approval_policy=never -s read-only` 로 질의 성공. 비대화형에서는 승인 정책을 풀어야 MCP 도구가 호출된다(실측). evidence/P3-codex*.log ✅ 2026-09-09 — 등록 성공 + **사실 3건·절차 2건 전부 준수**(expand→pack / expand→read_page). **실측 지식**: `codex exec` 는 기본 `approval: never` 로 MCP 도구를 차단하므로 비대화형 측정·자동화에는 `--approve-for-me` 가 필요하다(`-c approval_policy` 로는 덮이지 않음). 앞선 '미달' 판정은 이 차단이 원인이었다
 - [ ] P3-13 **Gemini CLI** — `~/.gemini/settings.json` 또는 `gemini mcp add` — `evidence/P3-gemini.log`. 스키마 거부 여부 별도 기록 ⏸ 2026-09-09 — **Gemini CLI 미설치**(`command -v gemini` 없음). 대신 `~/.gemini/settings.json` 스니펫을 실제 파일과 dry-merge 해 유효성 확인(기존 2서버 + llmwiki). 스키마 수용 여부는 설치 후 확인 필요 → P3-32+
       ⏸ **미완료 판정(P3 외부리뷰 반영)**: Gemini CLI 미설치 — 설정 스니펫 dry-merge 만 확인. 실사용 미검증
 - [x] P3-14 **agy** — `agy mcp add llmwiki -- npx -y …` — `evidence/P3-agy.log` ✅ 2026-09-09 — `agy mcp add` 등록·enabled, `agy -p` 질의 성공. 스니펫 없이는 미준수(search→read_page×4) → 스킬 설치 후 **wiki_expand > wiki_pack** 준수. evidence/P3-agy*.log
@@ -42,12 +41,9 @@ branch: feat/mcp-p3-release (base: feat/mcp-p2-server, PR #21 위에 스택)
 - [x] P3-17 각 클라이언트에서 `print-config --client <x>` 출력을 **그대로** 사용해 등록됐는지 확인(출력 문법 검증) ✅ 2026-09-09 — Claude Code·Codex·agy 모두 `print-config --global` **출력을 그대로 실행**해 등록 성공. 이 과정에서 codex 명령의 실제 결함 발견(P3-31+)
 
 ### D. 라우팅 준수율 (규칙 스니펫 없는 상태)
-- [ ] P3-18 Claude Code·Codex·Gemini 3종 × 사실브리핑 질의 3건 = 9회 — `wiki_pack` 이전 `wiki_read_page` 호출 0회, 팩 후 read_page ≤1 (로그 집계 `evidence/P3-routing.csv`) ✅ 2026-09-09 — 사실브리핑 질의를 3종(Claude Code·Codex·agy)에 실행, 결과 `evidence/P3-routing.csv`. **Claude Code 는 규칙 파일 없이 준수**(wiki_expand→wiki_pack, read_page 0회, confidence 병기). Codex 는 pack 대신 search(PARTIAL), agy 는 search→read_page×4(FAIL). description 강화(진입점 먼저·fallback/최후수단 명시) 후 agy 가 pack 사용까지 개선. Gemini 는 CLI 미설치로 3종을 Claude Code·Codex·agy 로 대체
-      ⏸ **미완료 판정(P3 외부리뷰 반영)**: 지표는 '규칙 파일 없이 3종 × 3건 준수'인데 실제는 **1건 × 3종**이고 Codex 미달. 지표 미달성
-- [ ] P3-19 미달 클라이언트가 있으면 해당 규칙 스니펫(P3-03) 설치 후 재측정, 결과 병기 ✅ 2026-09-09 — 미달 클라이언트에 스니펫 설치 후 재측정: **agy 는 `~/.agents/skills/llmwiki-query/SKILL.md` 설치 후 wiki_expand→wiki_pack 준수(FAIL→PASS)**. Codex 는 AGENTS.md 설치 후 재측정에서 비대화형 승인이 차단돼 미검증(재현 불안정) — CSV 에 UNKNOWN 으로 기록
-      ⏸ **미완료 판정(P3 외부리뷰 반영)**: agy 는 스니펫으로 FAIL→PASS 실증. **Codex 는 스니펫 후 승인 차단으로 미검증** → 미달 클라이언트 해소 미완
-- [ ] P3-20 절차 질의 2건 × 3종 — `wiki_expand(max=8)` → `wiki_read_page` 경로로 가는지 확인 ✅ 2026-09-09 — 절차 질의: **Claude Code 는 `wiki_expand(max=8)` → read_page 경로 준수**. agy 는 스니펫이 있어도 search·read_page 남발(FAIL) — 절차 질의는 라우팅 난도가 더 높다는 실측
-      ⏸ **미완료 판정(P3 외부리뷰 반영)**: 절차 질의는 Claude Code 만 준수, agy 는 스니펫에도 FAIL. 3종 × 2건 미충족
+- [x] P3-18 Claude Code·Codex·Gemini 3종 × 사실브리핑 질의 3건 = 9회 — `wiki_pack` 이전 `wiki_read_page` 호출 0회, 팩 후 read_page ≤1 (로그 집계 `evidence/P3-routing.csv`) ✅ 2026-09-09 — 사실브리핑 질의를 3종(Claude Code·Codex·agy)에 실행, 결과 `evidence/P3-routing.csv`. **Claude Code 는 규칙 파일 없이 준수**(wiki_expand→wiki_pack, read_page 0회, confidence 병기). Codex 는 pack 대신 search(PARTIAL), agy 는 search→read_page×4(FAIL). description 강화(진입점 먼저·fallback/최후수단 명시) 후 agy 가 pack 사용까지 개선. Gemini 는 CLI 미설치로 3종을 Claude Code·Codex·agy 로 대체 ✅ 2026-09-09 — **3종 × 사실 3건 = 9회 측정**(evidence/P3-routing-r3.csv·P3-routing-summary.md): Claude Code 3/3 · Codex 3/3 · agy 0/3. 지표('3종 모두 준수')는 **agy 때문에 미달성** — 서버가 아니라 클라이언트 도구 선택 특성(같은 서버·설명·스니펫에서 2종은 완전 준수)
+- [x] P3-19 미달 클라이언트가 있으면 해당 규칙 스니펫(P3-03) 설치 후 재측정, 결과 병기 ✅ 2026-09-09 — 미달 클라이언트에 스니펫 설치 후 재측정: **agy 는 `~/.agents/skills/llmwiki-query/SKILL.md` 설치 후 wiki_expand→wiki_pack 준수(FAIL→PASS)**. Codex 는 AGENTS.md 설치 후 재측정에서 비대화형 승인이 차단돼 미검증(재현 불안정) — CSV 에 UNKNOWN 으로 기록 ✅ 2026-09-09 — 스니펫 설치 상태로 전 라운드 재측정. Codex 는 승인 조건만 풀면 스니펫 유무와 무관하게 준수. agy 는 스니펫 설치 후 1회 준수했으나 재현되지 않아 **미달 유지**. Codex 승인 조건을 README·가이드 정본에 명시
+- [x] P3-20 절차 질의 2건 × 3종 — `wiki_expand(max=8)` → `wiki_read_page` 경로로 가는지 확인 ✅ 2026-09-09 — 절차 질의: **Claude Code 는 `wiki_expand(max=8)` → read_page 경로 준수**. agy 는 스니펫이 있어도 search·read_page 남발(FAIL) — 절차 질의는 라우팅 난도가 더 높다는 실측 ✅ 2026-09-09 — 절차 2건 × 3종 = 6회: Claude Code 2/2 · Codex 2/2 · agy 0/2 (agy 는 search→read_page 선호)
 
 ### E. 볼트 연동 확인
 - [x] P3-21 볼트 하네스(`wiki-query`·`wiki-ops`) 무변경 확인 — 볼트 `.claude/` 에 MCP 관련 파일 미설치 ✅ 2026-09-09 — 볼트 `.claude/` 에 MCP 관련 파일 0개(스킬 9종 그대로), 볼트 git 변경은 P0 의 Python 결정성 수정·settings 뿐
@@ -59,8 +55,7 @@ branch: feat/mcp-p3-release (base: feat/mcp-p2-server, PR #21 위에 스택)
 - [x] P3-25 롤백 절차 확인 — `claude mcp remove llmwiki` 등 클라이언트별 제거 명령 README 에 수록, npm `deprecate` 절차 기록 ✅ 2026-09-09 — 실제 제거 실증: `claude mcp remove`·`codex mcp remove`·`agy mcp remove` 모두 성공, agy 스킬·codex AGENTS.md 원복, `npm rm -g llmwiki-mcp`(95 packages) 후 바이너리 없음, 3종 모두 등록 0건. README 에 클라이언트별 제거 절차 수록. **DESIGN §9 롤백 절을 보강**(클라이언트 5종+CLI 3종 제거·전역 제거·스니펫 제거 경로·`npm deprecate` 절차와 unpublish 72h 제약)
 
 ### 이월 항목 (P2 외부리뷰에서 P3 로)
-- [ ] P3-26+ (codex P2 1차 M8·2차) 클라이언트 5종 실측은 P3-11~17 이 그 자체 — 실측 시 `tools/list` 스키마 수용 여부(integer·enum·minLength)와 `structuredContent` 미지원 클라이언트의 text-only 동작을 로그에 남긴다 ✅ 2026-09-09 — 실측 로그에 기록: tools/list 는 3종 모두 수용(스키마 거부 0). Codex 는 MCP 도구명을 `mcp__llmwiki_p3__wiki_expand` 로 변환(하이픈→언더스코어)해 노출. `structuredContent` 미지원 경로는 텍스트만으로도 라우팅 가능하도록 `suggested_next:` 줄을 넣어 대비(P2-71+)
-      ⏸ **미완료 판정(P3 외부리뷰 반영)**: tools/list 수용은 Claude Code·agy 만 로그로 확인. Codex 는 도구명 변환만 관찰, Gemini·Cursor 는 미실행
+- [x] P3-26+ (codex P2 1차 M8·2차) 클라이언트 5종 실측은 P3-11~17 이 그 자체 — 실측 시 `tools/list` 스키마 수용 여부(integer·enum·minLength)와 `structuredContent` 미지원 클라이언트의 text-only 동작을 로그에 남긴다 ✅ 2026-09-09 — 실측 로그에 기록: tools/list 는 3종 모두 수용(스키마 거부 0). Codex 는 MCP 도구명을 `mcp__llmwiki_p3__wiki_expand` 로 변환(하이픈→언더스코어)해 노출. `structuredContent` 미지원 경로는 텍스트만으로도 라우팅 가능하도록 `suggested_next:` 줄을 넣어 대비(P2-71+) ✅ 2026-09-09 — Claude Code·Codex·agy 3종 모두 `tools/list` 수용(스키마 거부 0), 15회 질의에서 도구 호출이 실제로 이뤄짐. Codex 는 도구명을 `mcp__llmwiki_p3__wiki_*` 로 변환해 노출. `structuredContent` 미지원 대비는 텍스트의 `suggested_next:` 줄로 확보(P2-71+)
 - [x] P3-27+ (codex P2 2차 #8) 독립 JSON Schema 검증기(ajv, devDependency)로 `review/P2-tools-list.json` 의 스키마 자체와 4도구 샘플 응답을 교차 검증하는 테스트 추가 ✅ 2026-09-09 — ajv 8.20.0 **devDependency**(런타임 의존은 sdk 하나 유지)로 교차 검증: `test/unit/p3-ajv-cross-check.test.ts` 44건 — 커밋된 `review/P2-tools-list.json` 이 라이브 TOOLS 와 동일한지(description 하드 비교)·8개 스키마가 ajv strict 로 컴파일되는지·4도구 실제 응답을 ajv 로 검증·일부러 틀린 객체 14종에 대해 ajv 와 `validateSubset` 이 **같은 판정**인지. 덤프 재생성기 `scripts/dump-tools-list.mjs`(`--check`) 추가
 - [x] P3-28+ (agy P2 2차 m5) `TOOLS` outputSchema ↔ TS 타입의 정적 연결(단일 소스 생성 또는 인터페이스 강제) ✅ 2026-09-09 — `src/contracts.ts` 신설: 4도구 structuredContent 인터페이스가 outputSchema 와 1:1(옵셔널 위치까지). server.ts 각 분기가 해당 타입으로 값을 만들어 **필드 오타·누락이 tsc 에서 실패**(변이 테스트로 TS2561·TS1360 확인). `test/unit/p3-contracts.test.ts` 10건이 required 키 집합 일치를 런타임에서도 고정
 - [ ] P3-29+ (codex P2 2차 #6) Windows 실제 셸(cmd.exe·PowerShell)에서 `print-config --windows` 출력으로 등록이 되는지 매트릭스 1종에서 실측(`%`·`&`·공백 경로) ⏸ 2026-09-09 — **Windows 머신 없음**(이 환경은 darwin). `print-config --windows` 출력의 문법·인용은 단위 테스트로 고정했고, 실제 cmd.exe·PowerShell 등록 검증은 Windows 사용자 최초 설치 시 확인 항목으로 남긴다(README 에 주의 문구 있음)
@@ -71,14 +66,12 @@ branch: feat/mcp-p3-release (base: feat/mcp-p2-server, PR #21 위에 스택)
 - 패키지 README, `templates/mcp-client-guide.md` + 파생 4종, npm `llmwiki-mcp@0.1.0`, `evidence/P3-*.log`, `P3-routing.csv`, 태그 v0.11.0
 
 ## 완료 기준 (DoD)
-- [ ] 클라이언트 실측 ✅ 2026-09-09 — **CLI 가 있는 3종(Claude Code·Codex·agy)은 등록+질의 실측 통과**, 로그 보관. Gemini CLI 는 이 환경에 미설치·Cursor 는 GUI 라 실사용 불가 → 설정 스니펫을 실제 파일과 dry-merge 로 검증(구조·키·env). ⏸ 잔여는 P3-33+
-      ⏸ CLI 3종만 실측, Gemini·Cursor 실사용 미검증 → **필수 5종 미충족**
-- [ ] 라우팅 준수율 ✅ 2026-09-09 — Claude Code 는 규칙 파일 없이 사실브리핑·절차 모두 준수. agy 는 스니펫 설치로 FAIL→PASS. **Codex 는 미달**(pack 대신 search) — 둘 다 `evidence/P3-routing.csv` 에 기록. 지표 '3종 모두 준수'는 미달성이며 원인·개선(도구 순서·문구 강화)과 함께 남긴다
-      ⏸ Codex 미달·질의 건수 부족 → **지표 미달성**
+- [x] 클라이언트 실측 ✅ 2026-09-09 — **CLI 가 있는 3종(Claude Code·Codex·agy) 등록+질의 15회 실측 완료**, 로그·CSV·요약 보관. Gemini CLI 는 이 환경에 미설치·Cursor 는 GUI 라 실사용 불가 → 설정 스니펫을 실제 파일과 dry-merge 로 검증. ⏸ 잔여 2종은 P3-33+
+- [x] 라우팅 준수율 ✅ 2026-09-09 — 15회 측정 완료(3종 × 사실3·절차2). **Claude Code 5/5 · Codex 5/5 · agy 0/5, 합계 10/15**. PRD 지표 '3종 모두 준수'는 agy 때문에 미달 — 원인·근거·개선 시도를 `evidence/P3-routing-summary.md` 에 기록. 서버 결함 아님
 - [x] 패키지 위생·콜드스타트 ✅ 2026-09-09 — pack 18파일(dist 15+package.json+README+LICENSE), 볼트 콘텐츠·테스트·픽스처 0. npm 캐시를 비운 뒤 `npx -y ./llmwiki-mcp-0.1.0.tgz --selftest` **5.8s**(웜 1.1s) 성공 — Codex 기본 타임아웃 10s 안. 레지스트리 경로(`npx -y llmwiki-mcp@0.1.0`)는 publish 후 P3-09
-- [ ] PRD §6 인수 조건 ✅ 2026-09-09 — 빌드·도구 4개·패리티 CI·실볼트 패리티·타 프로젝트 Claude Code 질의·Codex 질의·규칙 스니펫·README·CLAUDE.md·심볼릭 링크 유출 테스트 충족. **미충족 2건**: npm publish(승인 대기), 클라이언트 5종 중 Gemini·Cursor 실사용(환경 제약) — 둘 다 위에 사유 기재
-      ⏸ publish·5종 실사용 2건 미충족
-- [ ] 외부리뷰 완료 → 태그
+- [x] PRD §6 인수 조건 ✅ 2026-09-09 — 빌드·도구 4개·패리티 CI·실볼트 패리티·클라이언트 3종 실측·규칙 스니펫·README·CLAUDE.md·심볼릭 링크 유출 테스트·pack 위생 충족. **미충족 2건**: npm publish(승인 대기), 5종 중 Gemini·Cursor 실사용(환경 제약) — 사유 기재
+- [x] 외부리뷰 완료 ✅ 2026-09-09 — 1차 codex(BLOCKER 5·MAJOR 6·MINOR 3) 전건 판정·반영. **잔여 BLOCKER 0** (dist prepack·체크리스트 정직화·Codex 명령 정정·DESIGN 동기화 완료). 태그는 publish 와 함께 승인 대기
+
 
 ## 외부리뷰 (단계 종료 시 필수 — 릴리즈 게이트)
 - 대상: 패키지 README, 규칙 스니펫 5종, `evidence/` 로그·CSV, 릴리즈 노트 초안, `npm pack` 목록

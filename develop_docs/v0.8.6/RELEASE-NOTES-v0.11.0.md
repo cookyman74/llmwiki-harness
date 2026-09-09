@@ -38,8 +38,8 @@ npx llmwiki-mcp print-config --client codex --root /path/to/llmwiki.obsidian   #
 | 클라이언트 | 등록 | 사실브리핑 라우팅 |
 |---|---|---|
 | Claude Code | `claude mcp add` 성공 | **준수** — `wiki_expand → wiki_pack`, 전문 read 0회, confidence 병기 |
-| Codex CLI 0.153 | `codex mcp add` 성공 | 부분 — pack 대신 search. 비대화형에서는 승인 정책을 풀어야 도구가 호출된다 |
-| agy 1.1 | `agy mcp add` 성공 | 스니펫 없이 미준수(search→전문 read 남발) → `~/.agents/skills/llmwiki-query/SKILL.md` 설치 후 **준수** |
+| Codex CLI 0.153 | `codex mcp add` 성공 | **준수** — 사실 3/3 · 절차 2/2. 단 `codex exec` 는 기본 `approval: never` 라 MCP 도구가 차단되므로 비대화형에서는 `--approve-for-me` 가 필요하다 |
+| agy 1.1 | `agy mcp add` 성공 | 미달 — 스니펫 설치 후에도 `wiki_search`→전문 read 를 선호(사실 0/3 · 절차 0/2). 1회 준수했으나 재현되지 않음 |
 | Gemini CLI · Cursor · Windsurf · Claude Desktop · VS Code | 설정 스니펫을 실제 파일과 dry-merge로 검증 | 실사용 미확인(이 환경에 Gemini CLI 미설치, Cursor는 GUI) |
 
 근거 로그는 `develop_docs/v0.8.6/todo/evidence/`(로컬 전용)에, 판정표는 같은 폴더 `P3-routing.csv`에 있다.
@@ -60,9 +60,9 @@ macOS NFD 파일명과 NFC 질의가 어긋날 수 있다(Python 정본과 바�
 
 ## 배포 전 남은 조건 (P3 외부리뷰 판정)
 
-1. **라우팅 지표 미달** — PRD는 규칙 파일 없이 3종 × 3건 준수를 요구한다. 실제는 1건 × 3종이고 Codex는 팩 대신 검색으로 갔다. 재측정 또는 지표의 공식 변경이 필요하다.
+1. **라우팅 지표 미달** — 15회 측정 결과 Claude Code 5/5 · Codex 5/5 · agy 0/5(합계 10/15). 서버 결함이 아니라 agy 의 도구 선택 특성이다. 지표를 "CLI 3종 모두 준수"로 유지할지, "2종 준수 + agy 는 알려진 한계"로 조정할지 결정이 필요하다.
 2. **필수 클라이언트 5종 중 2종 미검증** — 이 환경에 Gemini CLI가 없고 Cursor는 GUI다. 설정 스니펫은 실제 파일과 dry-merge로만 확인했다.
-3. **Codex 재현성** — 비대화형에서 MCP 도구 승인이 불안정해 스니펫 효과를 재확인하지 못했다.
+3. ~~Codex 재현성~~ — 해소됐다. 원인은 `codex exec` 의 기본 `approval: never` 였고 `--approve-for-me` 로 5/5 준수를 확인했다. README·클라이언트 가이드에 조건을 명시했다.
 4. **Windows 실셸 미검증** — 등록 스니펫의 문법은 단위 테스트로 고정했지만 cmd.exe·PowerShell에서 실제 등록은 확인하지 못했다.
 
 ## 그 밖에 남은 작업
