@@ -1,10 +1,10 @@
 # P1 — 리트리벌 포팅: search · expand · rerank · pack + 단위 + 패리티 CI
 
 ```
-status: review             # not-started | in-progress | review | done
+status: done               # not-started | in-progress | review | done
 started: 2026-09-09
-completed:
-external_review: pending   # pending | done → review/P1-agy-YYYY-MM-DD.md
+completed: 2026-09-09
+external_review: done → review/P1-codex-2026-09-09.md · P1-agy-2026-09-09.md · P1-codex-r2-2026-09-09.md
 branch: feat/mcp-p1-port (base: feat/mcp-p0-prepare, PR #19 위에 스택)
 ```
 
@@ -102,7 +102,7 @@ branch: feat/mcp-p1-port (base: feat/mcp-p0-prepare, PR #19 위에 스택)
 - [x] P1-69+ (agy 2차 MINOR-4) bm25Rank cpLen 중복 계산 제거(dl 맵 1회 계산, 출력 무변경 — 패리티·퍼징 재확인) ✅ 2026-09-09
 - [x] P1-70+ 단위 테스트 총계 갱신: 19파일 **176건** 통과 ✅ 2026-09-09
 - [x] P1-62+ 단위 테스트 총계: 17파일 **170건** 통과 (`npm run check`) ✅ 2026-09-09
-- [ ] P1-48 Windows 실행 확인 — CI windows-latest 녹색 (경로 구분자·CRLF 콘솔)
+- [x] P1-48 Windows 실행 확인 — CI windows-latest 녹색 (경로 구분자·CRLF 콘솔) ✅ 2026-09-09 — PR #20 `parity (windows-latest)` pass (npm run check + parity.py 14×4 + pack 가드), smoke 도 pass
 
 ## 산출물
 - `src/{vault,graph,search,expand,bm25,pack,format,cli}.ts`, `test/unit/*`, `tests/parity.py`, CI 잡 2개
@@ -111,10 +111,10 @@ branch: feat/mcp-p1-port (base: feat/mcp-p0-prepare, PR #19 위에 스택)
 ## 완료 기준 (DoD)
 - [x] 대응표 21행 + #17b 각각에 대응하는 **명시적** 단위 테스트 존재·통과 ✅ 2026-09-09 — 17파일 170건. 코덱스 리뷰가 지적한 #4·#9·#12~14·#15·#17b·#21 누락을 P1-53+~58+ 로 보강
 - [x] 픽스처 패리티 14×4 전건 통과 ✅ 2026-09-09 — tests/parity.py FAIL 0/56·DRIFT 0/56
-- [ ] CI 3-OS 녹색 (P1-48 과 함께 — PR 푸시 후 확인. 코덱스 리뷰 BLOCKER-1: 확인 전 체크 금지)
+- [x] CI 3-OS 녹색 ✅ 2026-09-09 — PR #20: parity·smoke × ubuntu/macos/windows 6/6 pass
 - [x] 실볼트 5질의 패리티 통과 ✅ 2026-09-09 — `parity.py --vault` 0/20 FAIL (fmt1 수정 후 재확인)
 - [x] Python 정본 수정 0건 (P0 결정성 수정 외) ✅ 2026-09-09 — `git diff feat/mcp-p0-prepare -- .claude/skills` 비어 있음
-- [ ] 외부리뷰 완료
+- [x] 외부리뷰 완료 ✅ 2026-09-09 — codex 1차(BLOCKER 2·MAJOR 5)·agy 2차(BLOCKER 1·MAJOR 2·MINOR 3)·codex 2차(BLOCKER 1·MAJOR 1·MINOR 2) 전건 판정·반영(이월 1: P4-12+). 잔여 BLOCKER 0
 
 ## 외부리뷰 (단계 종료 시 필수)
 - 대상: `src/*.ts`(server 제외), `test/unit/*`, `tests/parity.py`, CI diff, 패리티 기록
