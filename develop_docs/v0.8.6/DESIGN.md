@@ -63,7 +63,7 @@ tests/parity.py           (저장소 루트, 기존 smoke.py 옆) Python↔Node 
 
 ## 3. 도구 계약
 
-공통: 모든 도구는 `content[0].text`에 **Python 스크립트와 바이트 동일한 텍스트**를, `structuredContent`에 JSON을 함께 반환한다. 텍스트는 패리티·사람 가독용, JSON은 에이전트 파싱용. 오류는 MCP `isError: true` + 한 줄 메시지.
+공통: 모든 도구는 `content[0].text`에 **사람이 읽는 텍스트**를, `structuredContent`에 JSON을 함께 반환한다. Python 스크립트와의 **바이트 동일 보장은 `--once` CLI** 에 있다(패리티 테스트 대상). MCP 응답은 `wiki_expand` 에 `suggested_next: …` 한 줄을 덧붙이고 200KB 예산을 적용한다. 텍스트는 패리티·사람 가독용, JSON은 에이전트 파싱용. 오류는 MCP `isError: true` + 한 줄 메시지.
 
 동일성의 정의: Python `stdout` 전체(줄 구분 `\n`, **마지막 개행 포함**)와 `--once` 출력이 바이트 동일. MCP `text`도 같은 문자열(개행 제거 안 함). Windows에서도 `\n` 고정(Python 쪽은 `sys.stdout.reconfigure(newline="\n")`을 patch 범위에 포함 — §7). 예외는 rerank 점수 열 하나(§7 허용오차).
 
@@ -181,7 +181,7 @@ description 요지: "절차·how-to 또는 팩이 불충분한 특정 주장 확
 - **자원 상한(P2 리뷰).** 파일 1개 ≤16MiB, 파일 수 ≤20,000 — 초과 시 결과를 조용히 바꾸지 않고 `VaultLimitError`(도구 isError / `--once` exit 1). 동시 도구 호출 ≤4(세마포어).
 - **TOCTOU 완화(P2 리뷰).** `read()` 는 `O_NOFOLLOW` 로 열어 realpath 검사 뒤 최종 구성요소가 링크로 바뀌어도 따라가지 않는다(POSIX; Windows 는 상수 없음). 상위 디렉터리 교체 경쟁은 로컬 단일 사용자 도구 범위에서 수용 — 원격/멀티테넌트 노출 시 재검토.
 - **읽기 전용 가드는 허용목록.** CI 가 `src/` 의 `fs.*`/`fh.*` 멤버를 추출해 readFile·readdir·stat·realpath·open(읽기 플래그)·close·constants 외면 실패. 대괄호 접근·동적 접근 금지.
-- **print-config 안전.** 서버 이름 `^[A-Za-z][A-Za-z0-9_-]{0,63}$`(셸·TOML 삽입), root 개행·NUL 거부. **Windows 출력은 볼트 경로를 명령 인자에 넣지 않는다**(`cmd /c` 가 `&`·`|`·`%VAR%` 해석) — env 전달만. CLI 형의 `--env` 값은 cmd.exe 인용(`%`→`%%`) + PowerShell·지연확장 주의 주석.
+- **print-config 안전.** 서버 이름 `^[A-Za-z][A-Za-z0-9_-]{0,63}$`(셸·TOML 삽입), root 개행·NUL 거부. **Windows 출력은 볼트 경로를 명령 인자에 넣지 않는다**(`cmd /c` 가 `&`·`|`·`%VAR%` 해석) — env 전달만. CLI 형의 `--env` 값은 cmd.exe 인용(큰따옴표). **`%` 는 이스케이프 불가**(대화형 cmd 는 따옴표 안에서도 확장, `%%` 는 배치 전용) → `%`·`!` 가 든 경로는 CLI 형 등록을 거부하고 JSON 설정형(env)을 안내한다.
 - **볼트 루트 검증(P2 2차 리뷰).** `resolveRoot` 를 서버·`--selftest`·`--once` 가 공유: root realpath, `wiki/` 는 **비링크 디렉터리**이고 `realpath(wiki) == <rootReal>/wiki` — `root/wiki → 외부` 링크가 walkMd 경계를 통째로 우회하던 결함 차단. 오류 메시지는 입력 문자열만 반영(realpath 비노출), `--selftest` 는 basename+해시(`--show-root` 로 전체).
 - **원시 입력 가드.** terms/slugs 문자열 ≤4,096자·배열 ≤256항목을 분할·순회 **전에** 검사. 볼트: 파일 ≤20,000·디렉터리 ≤5,000·깊이 ≤32·누적 텍스트 ≤512MiB·파일 ≤16MiB.
 - **`--once` 계약.** Python 패리티 도구이므로 200KB 절단을 적용하지 않는다. P2-33 "같은 코드 경로" = 절단 전 리트리벌 텍스트 동일.
@@ -190,7 +190,7 @@ description 요지: "절차·how-to 또는 팩이 불충분한 특정 주장 확
 
 ## 6. 성능
 
-- v1: 호출마다 `buildGraph` (Python과 동일 동작). 실 볼트 315 페이지 기준 Python <1s → Node 동급 예상. 파일 read는 `fs.promises.readFile`을 동시성 32로 병렬(순서는 정렬된 목록 기준으로 재조립). **파일 크기 상한은 두지 않는다** — 스킵하면 Python과 결과가 달라진다(외부리뷰 #12 부분 기각). stdio 서버는 단일 클라이언트라 이벤트 루프 블로킹은 수용.
+- v1: 호출마다 `buildGraph` (Python과 동일 동작). 실 볼트 315 페이지 기준 Python <1s → Node 동급 예상. 파일 read는 `fs.promises.readFile`을 동시성 32로 병렬(순서는 정렬된 목록 기준으로 재조립). 파일을 조용히 **스킵하지 않는다**(Python 과 결과가 달라지므로 — 외부리뷰 #12). 대신 P2 리뷰 반영으로 16MiB 초과 시 **명시적 오류**(VaultLimitError)로 실패한다 — 결과를 바꾸지 않으면서 무제한 read 를 막는 절충(§5). stdio 서버는 단일 클라이언트라 이벤트 루프 블로킹은 수용.
 - v1.1(후속): 프로세스 내 캐시. 키 = `(relpath, mtimeMs, size)` 전 파일 스냅샷. 호출 시 `readdir+stat` 스캔(수 ms)으로 변경 감지 → 변경 파일만 재파싱, 그래프는 통째 재구성(인링크 때문). 패리티 테스트는 캐시 on/off 양쪽 실행.
 - OneDrive 온디맨드 파일(클라우드 전용 상태)은 첫 read가 느릴 수 있음 → README 한계에 기재.
 
@@ -215,15 +215,16 @@ for mode in [search --files, expand, expand --rerank 11, pack]:
 
 ## 8. 등록 매트릭스·클라이언트 안내
 
-문법은 2026-09-09 로컬 실측(`agy mcp add --help`, `codex mcp add --help` 0.153.4, `~/.gemini/settings.json`, `~/.cursor/mcp.json`) 기준. `print-config`가 아래를 생성한다. `<VAULT>`는 절대경로, 공백·한글 포함 가능하므로 항상 인용.
+문법은 2026-09-09 로컬 실측(`agy mcp add --help`, `codex mcp add --help` 0.153.4, `~/.gemini/settings.json`, `~/.cursor/mcp.json`) 기준. `print-config`가 아래를 생성한다. `<VAULT>`는 절대경로. 인용은 `print-config` 가 처리한다 — POSIX 는 위험 문자가 있을 때만 **작은따옴표**(`$`·백틱·`!` 완전 차단), 안전한 경로는 인용 없이 그대로.
 
 ```bash
 # Claude Code — 사용자 범위(모든 프로젝트에서 보임)
 claude mcp add --scope user llmwiki -- npx -y llmwiki-mcp --root "<VAULT>"
 
-# Codex CLI — CLI 등록. npx 콜드스타트가 기본 기동 타임아웃(10s)을 넘을 수 있어 타임아웃 상향 동반
+# Codex CLI (0.153.4 실측 — P3) — `-c mcp_servers.<name>.startup_timeout_sec=60` 을 add 와 함께 주면
+#   "invalid transport" 로 **실패**한다(-c 가 command 없는 테이블을 먼저 만든다). 플래그 없이 등록하고
+#   타임아웃이 필요하면 config.toml 을 편집한다. npx 콜드스타트 실측 5.8s(캐시 비운 tarball) < 기본 10s.
 codex mcp add llmwiki -- npx -y llmwiki-mcp --root "<VAULT>"
-codex mcp add llmwiki -c 'mcp_servers.llmwiki.startup_timeout_sec=60' -- npx -y llmwiki-mcp --root "<VAULT>"
 #   또는 ~/.codex/config.toml
 #   [mcp_servers.llmwiki]
 #   command = "npx"
@@ -267,7 +268,7 @@ npm i -g llmwiki-mcp   →   command: "llmwiki-mcp", args: ["--root", "<VAULT>"]
 - **단계**: P1 포팅+단위+패리티 → P2 MCP 서버+`--once`+Inspector 확인 → P3 README·스킬·npm publish 0.1.0·CI → P4(후속) 캐시 v1.1.
 - **버전**: 하네스 태그 `v0.11.0`(외부 인터페이스 신설). npm은 독립 semver, 랭킹 규칙 변경 시 npm minor + 하네스 동시 태그.
 - **동기 규칙(CLAUDE.md에 추가)**: "리트리벌 규칙 변경은 Python 스크립트·TS 포팅·패리티 픽스처 3점을 한 PR에서 함께 고친다."
-- **롤백**: 클라이언트에서 `claude mcp remove llmwiki`(등록 해제)로 끝. 볼트 하네스는 영향 없음(Python 경로 독립).
+- **롤백**(P3 실증): 클라이언트별 제거 → `claude mcp remove <name>` · `codex mcp remove <name>` · `agy mcp remove <name>` · JSON 설정형(gemini·cursor·windsurf·claude-desktop·vscode)은 해당 `mcpServers`/`servers` 블록 삭제. 전역 설치는 `npm rm -g llmwiki-mcp`. 규칙 스니펫은 `~/.claude/skills/llmwiki-query/`·`~/.agents/skills/llmwiki-query/`·`~/.codex/AGENTS.md`·`~/.gemini/GEMINI.md`·`.cursor/rules/llmwiki.mdc` 에서 제거. 배포 철회는 `npm deprecate llmwiki-mcp@<ver> "<사유>"`(설치는 계속 가능하되 경고), 되돌릴 수 없는 삭제는 72시간 내 `npm unpublish` 뿐이므로 원칙적으로 deprecate + 다음 patch 로 대응. 볼트 하네스는 영향 없음(Python 경로 독립).
 
 ## 10. 열린 결정 (착수 전 확정)
 

@@ -87,14 +87,18 @@ export function printConfig(o: PrintConfigOptions): string {
         ? `# Claude Code (Windows) — 경로는 env 로 전달\n${WIN_NOTE}claude mcp add --scope user --env ${cmdq(envKV)} ${name} -- ${cmdShell}\n`
         : `# Claude Code — 사용자 범위(모든 프로젝트에서 보임)\nclaude mcp add --scope user ${name} -- ${cmdShell}\n`;
     case "codex": {
+      // `codex mcp add <name> -c mcp_servers.<name>.startup_timeout_sec=60 -- <cmd>` 는 **실패한다**
+      // (codex 0.153.4 실측 2026-09-09: `-c` 오버라이드가 command 없는 테이블을 먼저 만들어 "invalid transport").
+      // → CLI 는 플래그 없이 등록하고, 타임아웃이 필요하면 config.toml 을 편집한다.
       const envFlag = o.windows ? ` --env ${cmdq(envKV)}` : "";
       const tomlArgs = argsWithRoot.map((a) => JSON.stringify(a)).join(", ");
       const tomlEnv = o.windows ? `\n[mcp_servers.${name}.env]\nLLMWIKI_ROOT = ${JSON.stringify(root)}\n` : "";
       return (
-        `# Codex CLI — npx 콜드스타트가 기본 기동 타임아웃(10s)을 넘을 수 있어 startup_timeout_sec 상향 동반\n` +
+        `# Codex CLI (0.153 실측)\n` +
         (o.windows ? WIN_NOTE : "") +
-        `codex mcp add ${name} -c ${q(`mcp_servers.${name}.startup_timeout_sec=60`)}${envFlag} -- ${cmdShell}\n` +
-        `# 또는 ~/.codex/config.toml\n` +
+        `codex mcp add ${name}${envFlag} -- ${cmdShell}\n` +
+        `# npx 콜드스타트가 기본 기동 타임아웃(10s)을 넘으면 ~/.codex/config.toml 에 startup_timeout_sec 을 추가한다\n` +
+        `# (\`codex mcp add\` 의 -c 플래그로는 지정할 수 없다 — command 없는 테이블이 먼저 만들어져 "invalid transport" 로 실패)\n` +
         `[mcp_servers.${name}]\ncommand = ${JSON.stringify(command)}\nargs = [${tomlArgs}]\nstartup_timeout_sec = 60\n` +
         tomlEnv
       );

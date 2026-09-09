@@ -65,35 +65,6 @@ const termsSchema: JsonSchema = {
 
 export const TOOLS: ToolDef[] = [
   {
-    name: "wiki_search",
-    description:
-      "Lexical file ranking over the llmwiki vault (read-only). Returns pages matching any keyword, sorted by distinct-keyword count then total hits. Fallback when wiki_expand yields too few candidates.\n" +
-      "위키 본문+aliases 키워드 검색(파일 단위 랭킹). 보통은 wiki_expand 를 먼저 쓰고, 후보가 빈약할 때 fallback 으로 쓴다.\n" +
-      ROUTING_LINE_SEARCH,
-    inputSchema: {
-      type: "object",
-      properties: { terms: termsSchema, top: int(LIMITS.topMin, LIMITS.topMax, LIMITS.topDefault, "Max rows (cap, not fill)") },
-      required: ["terms"],
-    },
-    outputSchema: {
-      type: "object",
-      properties: {
-        text: { type: "string", description: "Same text as the Python search.py --files output" },
-        rows: {
-          type: "array",
-          items: {
-            type: "object",
-            properties: { distinct: { type: "integer" }, total: { type: "integer" }, slug: { type: "string" }, type: { type: "string" } },
-            required: ["distinct", "total", "slug", "type"],
-          },
-        },
-        matched: { type: "integer", description: "Rows before the top cap" },
-        truncated: { type: "boolean" },
-      },
-      required: ["text", "rows", "matched", "truncated"],
-    },
-  },
-  {
     name: "wiki_expand",
     description:
       "Graph-expanded candidates (read-only): lexical seeds → 1-hop neighbors → MoC members, optional BM25 rerank. Returns slugs with tier and a suggested_next hint.\n" +
@@ -181,8 +152,8 @@ export const TOOLS: ToolDef[] = [
   {
     name: "wiki_read_page",
     description:
-      "Full text of one wiki page (read-only, frontmatter included, 200 KB cap). Use only for procedure/how-to questions or to verify a specific claim the pack could not settle. Do not use it to browse in factual briefings.\n" +
-      "페이지 전문 read. 절차·how-to 또는 팩이 불충분한 특정 주장 확인에만. 사실브리핑에서 남발 금지.\n" +
+      "LAST RESORT — full text of ONE page (read-only, 200 KB cap). Only for procedure/how-to questions, or to settle one claim wiki_pack could not. At most 1–2 calls per question; never use it to browse or to answer a factual briefing.\n" +
+      "**최후 수단** — 절차·how-to, 또는 팩이 못 정한 주장 1건 확인용. 질의당 1~2회. 브라우징·사실브리핑 금지.\n" +
       ROUTING_LINE_READ,
     inputSchema: {
       type: "object",
@@ -212,6 +183,35 @@ export const TOOLS: ToolDef[] = [
         truncated: { type: "boolean" },
       },
       required: ["slug", "resolved_from_alias", "path", "frontmatter", "text", "truncated"],
+    },
+  },
+  {
+    name: "wiki_search",
+    description:
+      "FALLBACK ONLY — call wiki_expand first; use this only when wiki_expand returned too few candidates. Lexical file ranking over the llmwiki vault (read-only), sorted by distinct-keyword count then total hits.\n" +
+      "**fallback 전용** — 먼저 wiki_expand 를 부르고, 후보가 빈약할 때만 쓴다.\n" +
+      ROUTING_LINE_SEARCH,
+    inputSchema: {
+      type: "object",
+      properties: { terms: termsSchema, top: int(LIMITS.topMin, LIMITS.topMax, LIMITS.topDefault, "Max rows (cap, not fill)") },
+      required: ["terms"],
+    },
+    outputSchema: {
+      type: "object",
+      properties: {
+        text: { type: "string", description: "Same text as the Python search.py --files output" },
+        rows: {
+          type: "array",
+          items: {
+            type: "object",
+            properties: { distinct: { type: "integer" }, total: { type: "integer" }, slug: { type: "string" }, type: { type: "string" } },
+            required: ["distinct", "total", "slug", "type"],
+          },
+        },
+        matched: { type: "integer", description: "Rows before the top cap" },
+        truncated: { type: "boolean" },
+      },
+      required: ["text", "rows", "matched", "truncated"],
     },
   },
 ];

@@ -9,6 +9,7 @@
 import { Server } from "@modelcontextprotocol/sdk/server/index.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { CallToolRequestSchema, ListToolsRequestSchema } from "@modelcontextprotocol/sdk/types.js";
+import { asStructuredContent, type ExpandStructured, type PackStructured, type ReadPageStructured, type SearchStructured } from "./contracts.js";
 import { expandData, packData, searchData } from "./once.js";
 import { PageNotFound, readPage } from "./read.js";
 import { LIMITS, RESPONSE_LIMIT, SERVER_INSTRUCTIONS, TOOLS, ToolInputError, capPages, capText, normalizeInt, normalizeSlug, normalizeSlugs, normalizeTerms, suggestedNext, validateSubset } from "./tools.js";
@@ -77,7 +78,9 @@ async function callToolInner(root: string, name: string, args: Record<string, un
         const top = normalizeInt(a.top, "top", LIMITS.topMin, LIMITS.topMax, LIMITS.topDefault);
         const d = await searchData(terms, root, top);
         const { text, truncated } = capText(d.text);
-        result = { content: [{ type: "text", text }], structuredContent: { text, rows: d.rows, matched: d.matched, truncated } };
+        // 타입 고정(P3-28+): outputSchema 대응 인터페이스로 만들어 필드 누락·오타를 tsc 가 잡게 한다.
+        const sc: SearchStructured = { text, rows: d.rows, matched: d.matched, truncated };
+        result = { content: [{ type: "text", text }], structuredContent: asStructuredContent(sc) };
         break;
       }
       case "wiki_expand": {
@@ -91,7 +94,8 @@ async function callToolInner(root: string, name: string, args: Record<string, un
         // Python 패리티 대상은 `--once`(순수 리트리벌 텍스트)이고 MCP 응답은 이 한 줄을 덧붙인다.
         const withHint = `${d.text}suggested_next: ${next}\n`;
         const { text, truncated } = capText(withHint);
-        result = { content: [{ type: "text", text }], structuredContent: { text, rows: d.rows, suggested_next: next, truncated } };
+        const sc: ExpandStructured = { text, rows: d.rows, suggested_next: next, truncated };
+        result = { content: [{ type: "text", text }], structuredContent: asStructuredContent(sc) };
         break;
       }
       case "wiki_pack": {
@@ -99,13 +103,15 @@ async function callToolInner(root: string, name: string, args: Record<string, un
         const d = await packData(slugs, root);
         const { text, truncated } = capText(d.text);
         const capped = capPages(d.pages); // structuredContent 도 같은 예산(리뷰 BLOCKER: text 만 자르면 우회)
-        result = { content: [{ type: "text", text }], structuredContent: { text, pages: capped.pages, truncated: truncated || capped.truncated } };
+        const sc: PackStructured = { text, pages: capped.pages, truncated: truncated || capped.truncated };
+        result = { content: [{ type: "text", text }], structuredContent: asStructuredContent(sc) };
         break;
       }
       case "wiki_read_page": {
         const slug = normalizeSlug(a.slug);
         const r = await readPage(root, slug);
-        result = { content: [{ type: "text", text: r.text }], structuredContent: { ...r } };
+        const sc: ReadPageStructured = { ...r };
+        result = { content: [{ type: "text", text: r.text }], structuredContent: asStructuredContent(sc) };
         break;
       }
       default:

@@ -6,7 +6,8 @@
  * P2 외부 보안리뷰 반영(2026-09-09):
  * - `--windows` 는 볼트 경로를 **명령 인자로 절대 넣지 않는다**(`cmd /c` 가 `&`·`|`·`%VAR%`·`!` 를 해석). JSON 설정형은
  *   env.LLMWIKI_ROOT, CLI 형은 `--env`(claude-code·codex) / `-e`(agy), codex TOML 은 `[mcp_servers.<name>.env]` 테이블.
- * - codex 의 `-c` 기동 플래그는 shq() 를 거친다 — 안전 문자만이면 인용하지 않는다(`mcp_servers.llmwiki.startup_timeout_sec=60` 은 안전).
+ * - P3 실측(codex 0.153.4): `codex mcp add <name> -c mcp_servers.<name>.startup_timeout_sec=60 -- <cmd>` 는 **실패한다**
+ *   ("invalid transport" — `-c` 가 command 없는 테이블을 먼저 만든다). 그래서 CLI 는 플래그 없이 등록하고 타임아웃은 config.toml 로 안내한다.
  * - 3차 리뷰(codex MINOR-7): **POSIX CLI 형은 작은따옴표**로 인용한다(`'` 는 `'\''` 로 분해). 큰따옴표는 `$`·백틱·`!`(history
  *   expansion) 를 셸이 해석할 여지를 남기기 때문. 따라서 POSIX 스냅샷의 경로는 `'/Users/x y/OneDrive-개인/llmwiki.obsidian'` 이다.
  * - 2차 리뷰(codex #6)·3차 정정: Windows CLI 형은 cmdq()(큰따옴표, `"`→`\"`; `%` 는 이스케이프 불가)로 인용하고 명령 앞에
@@ -35,23 +36,9 @@ const EXPECTED: Record<ClientName, Record<Variant, string>> = {
     global: `# Claude Code — 사용자 범위(모든 프로젝트에서 보임)\nclaude mcp add --scope user llmwiki -- llmwiki-mcp --root ${RQ}\n`,
   },
   codex: {
-    default:
-      `# Codex CLI — npx 콜드스타트가 기본 기동 타임아웃(10s)을 넘을 수 있어 startup_timeout_sec 상향 동반\n` +
-      `codex mcp add llmwiki -c mcp_servers.llmwiki.startup_timeout_sec=60 -- npx -y llmwiki-mcp --root ${RQ}\n` +
-      `# 또는 ~/.codex/config.toml\n` +
-      `[mcp_servers.llmwiki]\ncommand = "npx"\nargs = ["-y", "llmwiki-mcp", "--root", ${RJ}]\nstartup_timeout_sec = 60\n`,
-    windows:
-      `# Codex CLI — npx 콜드스타트가 기본 기동 타임아웃(10s)을 넘을 수 있어 startup_timeout_sec 상향 동반\n` +
-      WIN_NOTE +
-      `codex mcp add llmwiki -c mcp_servers.llmwiki.startup_timeout_sec=60 --env ${ENVQ} -- ${CMDW}\n` +
-      `# 또는 ~/.codex/config.toml\n` +
-      `[mcp_servers.llmwiki]\ncommand = "cmd"\nargs = ["/c", "npx", "-y", "llmwiki-mcp"]\nstartup_timeout_sec = 60\n` +
-      `\n[mcp_servers.llmwiki.env]\nLLMWIKI_ROOT = ${RJ}\n`,
-    global:
-      `# Codex CLI — npx 콜드스타트가 기본 기동 타임아웃(10s)을 넘을 수 있어 startup_timeout_sec 상향 동반\n` +
-      `codex mcp add llmwiki -c mcp_servers.llmwiki.startup_timeout_sec=60 -- llmwiki-mcp --root ${RQ}\n` +
-      `# 또는 ~/.codex/config.toml\n` +
-      `[mcp_servers.llmwiki]\ncommand = "llmwiki-mcp"\nargs = ["--root", ${RJ}]\nstartup_timeout_sec = 60\n`,
+    default: `# Codex CLI (0.153 실측)\ncodex mcp add llmwiki -- npx -y llmwiki-mcp --root '${ROOT}'\n# npx 콜드스타트가 기본 기동 타임아웃(10s)을 넘으면 ~/.codex/config.toml 에 startup_timeout_sec 을 추가한다\n# (\`codex mcp add\` 의 -c 플래그로는 지정할 수 없다 — command 없는 테이블이 먼저 만들어져 "invalid transport" 로 실패)\n[mcp_servers.llmwiki]\ncommand = "npx"\nargs = ["-y", "llmwiki-mcp", "--root", "${ROOT}"]\nstartup_timeout_sec = 60\n`,
+    windows: `# Codex CLI (0.153 실측)\n# (cmd.exe 는 큰따옴표 안에서도 %VAR% 를 확장하고 지연 확장 세션은 !VAR! 도 확장한다 — '%'·'!' 가 든 경로는 CLI 형 대신 JSON 설정형(env)을 쓰라. PowerShell 이면 값을 작은따옴표 '…' 로 감싸라)\ncodex mcp add llmwiki --env "LLMWIKI_ROOT=${ROOT}" -- cmd /c npx -y llmwiki-mcp\n# npx 콜드스타트가 기본 기동 타임아웃(10s)을 넘으면 ~/.codex/config.toml 에 startup_timeout_sec 을 추가한다\n# (\`codex mcp add\` 의 -c 플래그로는 지정할 수 없다 — command 없는 테이블이 먼저 만들어져 "invalid transport" 로 실패)\n[mcp_servers.llmwiki]\ncommand = "cmd"\nargs = ["/c", "npx", "-y", "llmwiki-mcp"]\nstartup_timeout_sec = 60\n\n[mcp_servers.llmwiki.env]\nLLMWIKI_ROOT = "${ROOT}"\n`,
+    global: `# Codex CLI (0.153 실측)\ncodex mcp add llmwiki -- llmwiki-mcp --root '${ROOT}'\n# npx 콜드스타트가 기본 기동 타임아웃(10s)을 넘으면 ~/.codex/config.toml 에 startup_timeout_sec 을 추가한다\n# (\`codex mcp add\` 의 -c 플래그로는 지정할 수 없다 — command 없는 테이블이 먼저 만들어져 "invalid transport" 로 실패)\n[mcp_servers.llmwiki]\ncommand = "llmwiki-mcp"\nargs = ["--root", "${ROOT}"]\nstartup_timeout_sec = 60\n`,
   },
   agy: {
     default: `# agy — 플래그는 name 앞, '-'로 시작하는 인자 앞에 '--'\nagy mcp add llmwiki -- npx -y llmwiki-mcp --root ${RQ}\n`,
@@ -271,16 +258,18 @@ describe("P2-26 print-config snapshots", () => {
     expect(w).toMatch(/^LLMWIKI_ROOT = ".*"$/m);
   });
 
-  it("P2-26 codex 기동 플래그는 shq() — 안전 문자만이면 인용 없음", () => {
+  it("P2-26 codex 등록 명령에는 -c 플래그가 없다(P3 실측: -c 조합은 invalid transport 로 실패) — 타임아웃은 config.toml 안내", () => {
     const out = printConfig(opts("codex", "default"));
-    expect(out).toContain("codex mcp add llmwiki -c mcp_servers.llmwiki.startup_timeout_sec=60 -- ");
-    expect(out).not.toContain("'mcp_servers");
+    expect(out).toContain("codex mcp add llmwiki -- ");
+    expect(out).not.toContain("mcp add llmwiki -c ");
+    expect(out).toContain("startup_timeout_sec = 60");
+    expect(out).toMatch(/invalid transport/);
   });
 
   it("P2-26 --name 으로 서버 이름 변경", () => {
     const out = printConfig({ client: "cursor", root: ROOT, name: "mywiki" });
     expect(parseJsonBody(out).mcpServers.mywiki).toBeDefined();
-    expect(printConfig({ client: "codex", root: ROOT, name: "mywiki" })).toContain("codex mcp add mywiki -c mcp_servers.mywiki.startup_timeout_sec=60 --");
+    expect(printConfig({ client: "codex", root: ROOT, name: "mywiki" })).toContain("codex mcp add mywiki -- ");
     expect(printConfig({ client: "codex", root: ROOT, name: "mywiki" })).toContain("[mcp_servers.mywiki]\n");
     expect(printConfig({ client: "codex", root: ROOT, name: "mywiki", windows: true })).toContain("[mcp_servers.mywiki.env]\n");
   });
