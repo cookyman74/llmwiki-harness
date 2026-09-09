@@ -29,3 +29,13 @@ CLAUDE.local.md
 _workspace/**
 # 런타임 락
 .claude/scheduled_tasks.lock
+
+# llmwiki-mcp (tools/llmwiki-mcp) build artifacts
+tools/llmwiki-mcp/node_modules/
+tools/llmwiki-mcp/dist/
+
+# v0.8.6 작업계획 근거 파일 — 실 볼트 출력·로그(콘텐츠 포함) 로컬 전용, 공개 저장소 커밋 금지
+develop_docs/**/todo/baseline/**
+develop_docs/**/todo/evidence/**
+!develop_docs/**/todo/baseline/.gitkeep
+!develop_docs/**/todo/evidence/.gitkeep

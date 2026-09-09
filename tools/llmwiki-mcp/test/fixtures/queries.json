@@ -1,0 +1,20 @@
+{
+  "_doc": "패리티 골든셋 질의 14개 (P0-33 — 계획은 12개였으나 골든셋 검증에서 moc tier·type 기본값 경로가 미실행으로 드러나 q13·q14 추가). 각 질의는 4모드로 실행된다: search(--files, top 8) · expand(--max 15) · rerank(--max 20 --rerank 11) · pack(pack_slugs). expected/<id>-<mode>.txt 는 gen-expected.py 가 Python 정본으로 생성한다. rerank 모드의 점수 열만 허용오차(±0.05) 대상이고 나머지는 바이트 동일이어야 한다.",
+  "defaults": { "search_top": 8, "expand_max": 15, "expand_top_seed": 6, "rerank_max": 20, "rerank_n": 11 },
+  "queries": [
+    { "id": "q01", "terms": ["벡터", "인덱스"], "case": "기본 한국어·다중 키워드", "pack_slugs": ["concept-vector-index", "concept-chunking", "entity-northwind-search"] },
+    { "id": "q02", "terms": ["rerank"], "case": "영문 별칭(aliases) 매치", "pack_slugs": ["concept-reranking", "fact-latency-budget"] },
+    { "id": "q03", "terms": ["chunking", "청킹"], "case": "영문·한국어 혼합 동의어", "pack_slugs": ["concept-chunking", "procedure-deploy-index"] },
+    { "id": "q04", "terms": ["ZZZNOPE"], "case": "미매치 + 대문자 — search는 소문자, expand는 원본 메시지(#17b)", "pack_slugs": ["nonexistent-slug"] },
+    { "id": "q05", "terms": ["GraphRAG"], "case": "대문자 질의어 소문자 매칭", "pack_slugs": ["concept-uppercase-term"] },
+    { "id": "q06", "terms": ["정렬테스트"], "case": "non-BMP slug 코드포인트 정렬(#11)", "pack_slugs": ["zz-🦀-crab", "zz-￦-won", "concept-emoji-notes"] },
+    { "id": "q07", "terms": ["레이턴시", "지연"], "case": "stale/superseded 쌍", "pack_slugs": ["fact-latency-budget", "fact-latency-budget-old"] },
+    { "id": "q08", "terms": ["팀", "구성"], "case": "claim 없는 페이지 — 첫 실문단 요약(#19)", "pack_slugs": ["entity-northwind-team"] },
+    { "id": "q09", "terms": ["별칭페이지"], "case": "별칭 전용 링크 도달(#8)", "pack_slugs": ["concept-alias-target", "concept-linker"] },
+    { "id": "q10", "terms": ["검색", "northwind"], "case": "큰 MoC 멤버 확장 MEMBER_K=6(#13)", "pack_slugs": ["entity-northwind-search", "search-moc", "dup-note"] },
+    { "id": "q11", "terms": ["캐싱", "prompt"], "case": "CRLF 파일(#2)", "pack_slugs": ["concept-prompt-caching-crlf"] },
+    { "id": "q12", "terms": ["평가", "harness"], "case": "BOM 파일(#2)", "pack_slugs": ["concept-evaluation-harness", "concept-reranking"] },
+    { "id": "q13", "terms": ["지도", "MoC"], "case": "MoC 자체가 seed일 때 — 멤버는 아웃링크 이웃이라 tier 1hop(=min(1,2))이 되고 moc tier는 안 생긴다(#12·#13 의미 고정). moc tier는 seed의 이웃 MoC 경유 멤버에서만 발생(q05·q09·q14 참조)", "pack_slugs": ["search-moc", "home-moc"] },
+    { "id": "q14", "terms": ["절차"], "case": "type 없는 페이지 → 부모 디렉터리명 L4-procedural(#5)", "pack_slugs": ["procedure-no-type", "procedure-deploy-index"] }
+  ]
+}

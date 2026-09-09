@@ -1,0 +1,7 @@
+## concept-chunking  [concept · conf 0.6 · active]
+- 청킹(chunking)은 문서를 검색 단위로 자르는 전처리다.
+- Northwind는 512토큰 청킹을 기본값으로 쓴다.
+
+## procedure-deploy-index  [procedure · conf 0.85 · active]
+- 인덱스 배포는 청킹 → 임베딩 → 벡터 인덱스 빌드 → 스모크 질의 순서다.
+

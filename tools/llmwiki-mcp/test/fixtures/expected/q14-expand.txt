@@ -1,0 +1,7 @@
+seed	101	procedure-deploy-index	procedure
+seed	100	procedure-no-type	L4-procedural
+1hop	2	concept-chunking	concept
+1hop	2	concept-evaluation-harness	concept
+moc	1	concept-linker	concept
+moc	1	concept-prompt-caching-crlf	concept
+moc	1	concept-reranking	concept

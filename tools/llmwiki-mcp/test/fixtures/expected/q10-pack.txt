@@ -1,0 +1,14 @@
+## entity-northwind-search  [entity · conf 0.95 · active]
+- Northwind 검색 서비스는 사내 문서 검색 플랫폼이다.
+- 검색 파이프라인은 청킹 → 벡터 인덱스 → rerank 순서다.
+- 관계) 사용함 :: [[concept-chunking]] (sources: 3, confidence: 0.95)
+- 관계) 사용함 :: [[concept-vector-index]]
+- 관계) uses :: [[concept-reranking]]
+- 관계) owned_by :: [[entity-northwind-team]]
+
+## search-moc  [moc · conf - · active]
+- (요약) Northwind 검색 관련 페이지 지도.
+
+## dup-note  [concept · conf 0.6 · active]
+- 중복 slug는 walk 순서상 마지막 파일이 이긴다 — 이 파일(L3-semantic)이 승자여야 한다.
+

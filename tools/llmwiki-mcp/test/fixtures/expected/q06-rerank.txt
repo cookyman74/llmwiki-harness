@@ -1,0 +1,3 @@
+seed	2.4	zz-￦-won	concept
+seed	2.4	zz-🦀-crab	concept
+seed	2.1	concept-emoji-notes	concept

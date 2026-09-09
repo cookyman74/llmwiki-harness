@@ -1,0 +1,8 @@
+1/7	concept-reranking	concept
+1/2	entity-northwind-search	entity
+1/2	query-search-briefing	query
+1/2	source-latency-review	source
+1/1	concept-evaluation-harness	concept
+1/1	concept-vector-index	concept
+1/1	fact-latency-budget	fact
+1/1	search-moc	moc

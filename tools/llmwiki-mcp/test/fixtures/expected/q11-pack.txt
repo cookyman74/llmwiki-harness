@@ -1,0 +1,4 @@
+## concept-prompt-caching-crlf  [concept · conf 0.6 · active]
+- prompt 캐싱은 반복 접두 토큰의 재계산을 줄여 지연을 낮춘다.
+- Northwind는 시스템 프롬프트 캐싱으로 지연을 약 30% 줄였다.
+

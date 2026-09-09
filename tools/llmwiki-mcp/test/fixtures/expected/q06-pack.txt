@@ -1,0 +1,9 @@
+## zz-🦀-crab  [concept · conf 0.6 · active]
+- (요약) 정렬테스트 — non-BMP(U+1F980) slug. 코드포인트 순서에서는 ￦(U+FFE6) 뒤에 온다.
+
+## zz-￦-won  [concept · conf 0.6 · active]
+- (요약) 정렬테스트 — BMP 상위(U+FFE6) slug. UTF-16 코드유닛 비교에서는 🦀 뒤로 밀린다.
+
+## concept-emoji-notes  [concept · conf 0.6 · active]
+- 이모지 🦀 같은 non-BMP 문자는 문서 길이 계산에서 코드포인트 1개로 센다.
+

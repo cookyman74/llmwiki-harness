@@ -5,7 +5,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "python3 .claude/skills/wiki-lint/scripts/wiki-status-check.py",
+            "command": "python3 \"$CLAUDE_PROJECT_DIR\"/.claude/skills/wiki-lint/scripts/wiki-status-check.py",
             "statusMessage": "위키 상태 점검"
           }
         ]
@@ -17,7 +17,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "python3 .claude/skills/wiki-lint/scripts/stamp-updated.py",
+            "command": "python3 \"$CLAUDE_PROJECT_DIR\"/.claude/skills/wiki-lint/scripts/stamp-updated.py",
             "statusMessage": "Stamping updated: date"
           }
         ]

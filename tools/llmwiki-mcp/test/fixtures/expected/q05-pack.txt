@@ -1,0 +1,3 @@
+## concept-uppercase-term  [concept · conf 0.6 · active]
+- GraphRAG는 그래프 구조를 리트리벌에 쓰는 기법이다.
+

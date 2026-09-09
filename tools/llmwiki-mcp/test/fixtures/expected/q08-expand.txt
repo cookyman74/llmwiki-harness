@@ -1,0 +1,5 @@
+seed	101	entity-northwind-team	entity
+seed	101	team-moc	moc
+1hop	3	entity-northwind-search	entity
+1hop	2	session-2026-09-01	session
+moc	1	search-moc	moc

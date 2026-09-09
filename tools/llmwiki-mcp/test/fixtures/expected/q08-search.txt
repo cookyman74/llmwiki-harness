@@ -1,0 +1,2 @@
+2/9	entity-northwind-team	entity
+1/2	team-moc	moc

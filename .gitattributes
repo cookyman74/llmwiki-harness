@@ -3,3 +3,6 @@
 *.py text eol=lf
 *.md text eol=lf
 *.json text eol=lf
+
+# v0.8.6 픽스처 — CRLF 케이스 파일은 정규화 금지(바이트 보존), 생성기: tools/llmwiki-mcp/test/fixtures/make-fixture.py
+tools/llmwiki-mcp/test/fixtures/vault/**/*-crlf.md -text

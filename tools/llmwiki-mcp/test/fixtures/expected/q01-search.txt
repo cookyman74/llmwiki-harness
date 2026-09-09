@@ -1,0 +1,5 @@
+2/14	concept-vector-index	concept
+2/5	procedure-deploy-index	procedure
+2/2	entity-northwind-search	entity
+2/2	query-search-briefing	query
+2/2	source-northwind-kickoff	source

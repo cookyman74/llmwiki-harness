@@ -1,0 +1,18 @@
+## concept-vector-index  [concept · conf 0.85 · active]
+- 벡터 인덱스는 임베딩을 근사 최근접 탐색 구조로 저장한다.
+- Northwind 검색은 HNSW 벡터 인덱스를 기본으로 쓴다.
+- 관계) depends_on :: [[concept-chunking]] (sources: 2, confidence: 0.85)
+- 관계) used_by :: [[entity-northwind-search]]
+
+## concept-chunking  [concept · conf 0.6 · active]
+- 청킹(chunking)은 문서를 검색 단위로 자르는 전처리다.
+- Northwind는 512토큰 청킹을 기본값으로 쓴다.
+
+## entity-northwind-search  [entity · conf 0.95 · active]
+- Northwind 검색 서비스는 사내 문서 검색 플랫폼이다.
+- 검색 파이프라인은 청킹 → 벡터 인덱스 → rerank 순서다.
+- 관계) 사용함 :: [[concept-chunking]] (sources: 3, confidence: 0.95)
+- 관계) 사용함 :: [[concept-vector-index]]
+- 관계) uses :: [[concept-reranking]]
+- 관계) owned_by :: [[entity-northwind-team]]
+

@@ -12,6 +12,7 @@
        - score>0 파일만, --top은 상한(fill 아님, 기본 8)
        - 본문 + frontmatter aliases 검색(동의어 매칭률↑)
 index.md/log.md 루트 파일은 wiki/ 밖이라 스코프 제외.
+디렉터리 순회는 `dirs.sort()`로 정렬해 OS 무관 결정성 확보(v0.8.6 P0). 랭킹 규칙 무변경.
 """
 import os
 import re
@@ -19,7 +20,7 @@ import sys
 
 # Windows/비UTF-8 로케일에서 한글 stdout 출력 인코딩 오류 방지 — UTF-8 강제
 try:
-    sys.stdout.reconfigure(encoding="utf-8")
+    sys.stdout.reconfigure(encoding="utf-8", newline="\n")
     sys.stderr.reconfigure(encoding="utf-8")
 except Exception:
     pass
@@ -55,7 +56,8 @@ def files_mode(terms, root, top):
         print("usage: search.py --files <term> [term ...] [--root .] [--top N]", file=sys.stderr)
         sys.exit(2)
     rows = []
-    for dp, _, files in os.walk(base):
+    for dp, dirs, files in os.walk(base):
+        dirs.sort()
         for f in sorted(files):
             if not f.endswith(".md"):
                 continue
@@ -92,7 +94,8 @@ def line_mode(query, root):
     q = query.lower()
     base = os.path.join(root, "wiki")
     hits = 0
-    for dp, _, files in os.walk(base):
+    for dp, dirs, files in os.walk(base):
+        dirs.sort()
         for f in sorted(files):
             if not f.endswith(".md"):
                 continue
