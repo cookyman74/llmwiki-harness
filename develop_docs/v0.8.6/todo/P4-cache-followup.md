@@ -29,6 +29,8 @@ external_review:           # pending | done → review/P4-agy-YYYY-MM-DD.md
 - [ ] P4-09 성능 — 1,000 페이지 합성 볼트에서 2회차 호출 <100ms, stat 스캔 비용 기록 `todo/baseline/P4-perf.txt`
 - [ ] P4-10 심볼릭 링크 스킵 규칙(P2-17) 이 캐시 경로에서도 유지되는지 테스트
 
+- [ ] P4-12+ (P1 코덱스 리뷰 #5 이월) lexScore 중복 계산 제거 — `lexicalSeeds` 가 distinct 캐시를 반환해 `expand` 가 재사용, BM25 `scoreText`·cpLen 도 그래프 빌드 시 1회 계산. **출력 무변경**(패리티 전건 유지가 조건). Python 정본은 그대로 둔다
+
 ### D. 배포
 - [ ] P4-11 npm `0.2.0` publish, README 성능 절 갱신, `CLAUDE.md` 변경 이력 행
 
