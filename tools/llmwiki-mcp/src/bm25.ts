@@ -5,18 +5,22 @@
  * 부동소수점 연산 순서를 Python 식과 동일하게 유지한다(`idf*(tf*(k1+1)) / (tf + k1*(1-b + b*dl/avgdl))`).
  * `Math.log` 와 libm `log` 는 1 ULP 차이가 날 수 있어 점수 열은 패리티에서 허용오차 대상(DESIGN §7).
  */
+import { derived } from "./cache.js";
 import type { Graph, Node } from "./graph.js";
 import { PY_WS_CLASS, cmpCodePoint, countSub, cpLen, pyLower } from "./vault.js";
 
 const MD_LINK_RE = /\]\([^)]*\)/g; // `[텍스트](url)` → `텍스트]`
 const URL_RE = new RegExp(`https?://[^${PY_WS_CLASS}]+`, "g"); // Python `\S+` = not isspace
 
-/** Python `_score_text(d)` — 링크 타겟·URL 제거 후 소문자. #15 */
+/** Python `_score_text(d)` — 링크 타겟·URL 제거 후 소문자. #15
+ *  term 과 무관하므로 `dl`(코드포인트 길이)과 함께 호출 사이에 재사용한다(P4-13+). */
 export function scoreText(d: Node): string {
-  let t = d.text + "\n" + d.aliases;
-  t = t.replace(MD_LINK_RE, "]");
-  t = t.replace(URL_RE, "");
-  return pyLower(t);
+  return derived(d, "scoreText", () => {
+    let t = d.text + "\n" + d.aliases;
+    t = t.replace(MD_LINK_RE, "]");
+    t = t.replace(URL_RE, "");
+    return pyLower(t);
+  });
 }
 
 /** Python `bm25_rank(G, terms, cand_slugs, k1=1.5, b=0.75)` → (정렬된 slug, scores). #16 #17
@@ -35,7 +39,7 @@ export function bm25Rank(
   let sumdl = 0;
   for (const [s, d] of G.nodes) {
     const tx = scoreText(d);
-    const dl = cpLen(tx);
+    const dl = derived(d, "dl", () => cpLen(tx));
     texts.set(s, tx);
     dlOf.set(s, dl);
     sumdl += dl;

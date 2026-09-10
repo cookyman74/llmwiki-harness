@@ -14,6 +14,11 @@ export default tseslint.config(
     },
   },
   {
+    // 성능 측정 스크립트(배포물 아님) — Node 전역만 선언하고 stdout 규칙은 적용하지 않는다.
+    files: ["test/perf/**/*.mjs"],
+    languageOptions: { globals: { console: "readonly", process: "readonly", performance: "readonly" } },
+  },
+  {
     ignores: ["dist/**", "node_modules/**"],
   },
 );

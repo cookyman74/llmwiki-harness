@@ -137,7 +137,7 @@ describe("P3-28+ outputSchema ↔ TS 인터페이스", () => {
       { name: "wiki_search", args: { terms: ["벡터"] }, node: "wiki_search.outputSchema ↔ SearchStructured" },
     ];
     for (const c of calls) {
-      const r = await callTool(FIXTURE_VAULT, c.name, c.args);
+      const r = await callTool(FIXTURE_VAULT, c.name, c.args, undefined, true);
       expect(r.isError, c.name).toBeFalsy();
       const sc = r.structuredContent as Record<string, unknown>;
       const n = NODES.find((x) => x.label === c.node) as Node;

@@ -1,0 +1,20 @@
+너는 외부 감사자다. llmwiki MCP 서버(Node.js)의 **P4-27+ 변경 — 구조화 출력(structuredContent·outputSchema) 기본 off, `LLMWIKI_STRUCTURED=1` opt-in** 을 비판적으로 리뷰하라. 저장소는 현재 디렉터리, 브랜치 feat/mcp-p4-lex-index. 이 변경은 P2 의 설계 결정("모든 도구가 structuredContent 를 항상 반환")을 뒤집는다.
+
+배경(실측): Claude Code 2.1.267 실클라이언트 E2E 에서 클라이언트가 structuredContent JSON 을 모델에 그대로 넘기고, 우리 structuredContent 가 `text` 와 `rows`/`pages` 를 이중으로 담아 모델 입력이 텍스트 대비 2.06~4.24배였다(pack 9,715B → 20,015B). 근거: `develop_docs/v0.8.6/todo/P4-cache-followup.md` P4-26+·P4-27+, DESIGN §3 "P4-27+ 결정".
+
+먼저 읽을 것:
+- tools/llmwiki-mcp/src/server.ts (callTool 의 `structured` 인자, createServer 의 tools/list·CallTool 배선), src/cli.ts (LLMWIKI_STRUCTURED 배선·HELP), src/tools.ts (TOOLS·outputSchema·capText·validateSubset), src/read.ts (read_page 텍스트 상한), src/contracts.ts
+- test/unit/p4-27-text-only-default.test.ts (신규), test/unit/p2-helpers.ts (connect 의 structured 기본값 true), 기존 P2/P3 structuredContent 테스트들
+- tools/llmwiki-mcp/README.md (도구 절·Env·상한 표), develop_docs/v0.8.6/DESIGN.md §3
+- MCP 2025-06-18 스펙의 outputSchema/structuredContent 규정(선언 시 structuredContent 의무 여부, 하위호환 텍스트 권고)
+
+리뷰 관점:
+1. **스펙 준수** — 기본 모드에서 outputSchema 를 선언하지 않고 structuredContent 도 보내지 않는 것이 스펙상 문제없는가. opt-in 모드에서 선언과 전송이 항상 짝을 이루는가(한쪽만 켜지는 경로가 있는가).
+2. **상한·보안 회귀** — 기본(텍스트 전용) 경로가 envelope 예산 루프·outputSchema 검증을 건너뛴다. 텍스트만으로 RESPONSE_LIMIT 을 넘을 수 있는 도구가 있는가(특히 read_page 의 frontmatter, pack). 오류(isError) 응답 형태가 두 모드에서 같은가.
+3. **동등성** — 두 모드의 텍스트가 바이트 동일하다는 주장이 모든 도구·절단 경로에서 성립하는가(pack 에서 envelope 루프가 텍스트를 추가로 줄이는 경우 opt-in 쪽 텍스트가 달라지는 것은 의도인가, 테스트로 드러나는가).
+4. **테스트 설계** — `p2-helpers.connect()` 기본을 `structured: true` 로 둬 기존 테스트를 opt-in 경로에 묶은 결정이 타당한가. 기본 모드(실제 사용자 경로)가 충분히 검사되는가 — 기존 P2 보안·상한 테스트 중 기본 모드에서도 돌려야 할 것이 있는가.
+5. **클라이언트 영향** — structuredContent 를 쓰던 클라이언트(Codex·agy·Cursor 등)가 기본 모드에서 기능을 잃는가. suggested_next 라우팅 힌트가 텍스트에만 있어도 충분한가.
+6. **문서·배선** — README·DESIGN·HELP·CLAUDE.md 가 새 기본값과 일치하는가. 남은 "항상 structuredContent" 서술이 있는가.
+
+출력 형식(한국어): [BLOCKER]/[MAJOR]/[MINOR], 각 항목 위치(파일:줄)/문제/근거/제안. 마지막에 "총평(병합 가능 여부)". 칭찬 생략, 문제만. 문제가 없으면 없다고 적어라.
+제약: 어떤 파일도 생성·수정·삭제하지 마라. 읽기와 상태를 바꾸지 않는 명령만. 실 볼트 경로(OneDrive)는 열지 마라. 네트워크로 배포·등록하지 마라.

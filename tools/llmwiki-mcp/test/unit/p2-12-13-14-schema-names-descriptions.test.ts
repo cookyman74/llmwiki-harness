@@ -28,7 +28,7 @@ function walkSchema(node: unknown, at: string, visit: (at: string, key: string, 
 let c: Connected;
 let tools: Tool[];
 beforeAll(async () => {
-  c = await connect(FIXTURE_VAULT);
+  c = await connect(FIXTURE_VAULT, { structured: true });
   tools = (await c.client.listTools()).tools;
 });
 afterAll(async () => c.close());

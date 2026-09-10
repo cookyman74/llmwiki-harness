@@ -31,7 +31,7 @@ describe("review: concurrency semaphore", () => {
   });
 
   it("MAJOR: 12 concurrent wiki_expand calls over the MCP client all resolve, none isError, identical results", async () => {
-    const c = await connect(FIXTURE_VAULT);
+    const c = await connect(FIXTURE_VAULT, { structured: true });
     try {
       const results = await Promise.all(Array.from({ length: 12 }, () => c.call("wiki_expand", { terms: ["rerank", "bm25"], rerank: 11 })));
       expect(results).toHaveLength(12);
@@ -47,10 +47,10 @@ describe("review: concurrency semaphore", () => {
   });
 
   it("MAJOR: 12 concurrent direct callTool invocations (bypassing the transport) also all resolve — queue drains, no starvation", async () => {
-    const results = await Promise.all(Array.from({ length: 12 }, (_, i) => callTool(FIXTURE_VAULT, i % 2 ? "wiki_search" : "wiki_expand", { terms: ["rerank"] })));
+    const results = await Promise.all(Array.from({ length: 12 }, (_, i) => callTool(FIXTURE_VAULT, i % 2 ? "wiki_search" : "wiki_expand", { terms: ["rerank"] }, undefined, true)));
     for (const r of results) expect(r.isError).toBeFalsy();
     // 세마포어가 해제됐는지 — 이후 호출이 즉시 처리된다
-    const after = await callTool(FIXTURE_VAULT, "wiki_read_page", { slug: "concept-reranking" });
+    const after = await callTool(FIXTURE_VAULT, "wiki_read_page", { slug: "concept-reranking" }, undefined, true);
     expect(after.isError).toBeFalsy();
   });
 });
@@ -70,15 +70,15 @@ describe("review: vault size limits", () => {
     await writeFile(path.join(dir, "small.md"), "---\ntype: concept\n---\n# small\nrerank\n", "utf8");
     await expect(read(huge)).rejects.toBeInstanceOf(VaultLimitError);
     await expect(read(huge)).rejects.toThrow(/bytes/);
-    const s = await callTool(root, "wiki_search", { terms: ["rerank"] });
+    const s = await callTool(root, "wiki_search", { terms: ["rerank"] }, undefined, true);
     expect(s.isError).toBe(true);
     expect(text(s)).toMatch(/exceeds \d+ bytes/);
     expect(text(s)).not.toContain(root); // 경로 누설 없이 basename 만
-    const p = await callTool(root, "wiki_read_page", { slug: "huge" });
+    const p = await callTool(root, "wiki_read_page", { slug: "huge" }, undefined, true);
     expect(p.isError).toBe(true);
     expect(text(p)).toMatch(/bytes/);
     // 같은 오류가 MCP 와이어에서도 isError 로(throw 아님)
-    const c = await connect(root);
+    const c = await connect(root, { structured: true });
     try {
       const r = await c.call("wiki_expand", { terms: ["rerank"] });
       expect(r.isError).toBe(true);
@@ -99,7 +99,7 @@ describe("review: vault size limits", () => {
     }
     await expect(walkMd(wiki)).rejects.toBeInstanceOf(VaultLimitError);
     await expect(walkMd(wiki)).rejects.toThrow(/exceeds 20000 markdown files/);
-    const r = await callTool(root, "wiki_search", { terms: ["x"] });
+    const r = await callTool(root, "wiki_search", { terms: ["x"] }, undefined, true);
     expect(r.isError).toBe(true);
     expect(text(r)).toMatch(/exceeds 20000/);
   }, 60_000);

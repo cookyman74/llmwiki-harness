@@ -35,9 +35,11 @@ export interface Connected {
   close: () => Promise<void>;
 }
 
-/** 픽스처(또는 임시) 볼트 위에 서버·클라이언트를 InMemory 로 연결한다. root 는 realpath 정규화된 값을 넘길 것. */
-export async function connect(root: string): Promise<Connected> {
-  const server = createServer({ root, version: "0.1.0" });
+/** 픽스처(또는 임시) 볼트 위에 서버·클라이언트를 InMemory 로 연결한다. root 는 realpath 정규화된 값을 넘길 것.
+ *  기본은 **실제 서버 기본값과 같은 텍스트 전용**(P4-27+, 외부리뷰: 헬퍼가 opt-in 을 기본으로 두면 사용자 경로가 검사되지 않는다).
+ *  structuredContent·outputSchema 계약을 검사하는 테스트만 `connect(root, { structured: true })` 로 명시한다. */
+export async function connect(root: string, opts: { structured?: boolean } = {}): Promise<Connected> {
+  const server = createServer({ root, version: "0.1.0", structured: opts.structured ?? false });
   const [ct, st] = InMemoryTransport.createLinkedPair();
   await server.connect(st);
   const client = new Client({ name: "p2-test", version: "0" });

@@ -240,14 +240,16 @@ The root is reported as basename + hash so logs and screenshots do not leak the 
 
 ## Tools
 
-All four return the human/parity text in `content[0].text` **and** a JSON object in `structuredContent`. Clients that do not support `structuredContent` work from the text alone — the text is the primary representation. Errors come back as `isError: true` with a one-line message.
+By default all four return **text only** in `content[0].text` — the same TSV/markdown text the Python scripts print, plus a `suggested_next:` routing line on `wiki_expand`. Set `LLMWIKI_STRUCTURED=1` to also declare an `outputSchema` per tool and return a matching JSON object in `structuredContent` (the two always go together — the MCP spec requires `structuredContent` once an `outputSchema` is declared). Why text is the default: Claude Code hands `structuredContent` to the model when it is present, and ours repeats the text alongside `rows`/`pages`, so the model received 2–4× the bytes (measured 2026-09-10: `wiki_pack` 9.7 KB of text became 20 KB). Turn it on only for programmatic clients that need the fields.
+
+To opt in, add the variable to the server's environment — e.g. in a JSON client config `"env": { "LLMWIKI_ROOT": "<VAULT>", "LLMWIKI_STRUCTURED": "1" }`, or `claude mcp add … --env LLMWIKI_STRUCTURED=1 …`. Only the value `1` enables it. Note that in structured mode `content[0].text` stays the TSV/markdown text rather than a JSON serialisation of `structuredContent` (the MCP spec *recommends* the latter for backwards compatibility); this is deliberate, because the text is what text-only clients and the Python parity tests rely on. For large responses the text in structured mode can be shorter than in the default mode: the 200 KB budget covers the whole JSON response, and structured mode carries the text twice.
 
 | Tool | When to call it | Inputs (default · range) | Returns |
 |---|---|---|---|
-| `wiki_expand` | **First call for every wiki question.** Lexical seeds → 1-hop neighbours → MoC members, optionally BM25-reranked. | `terms` string[] 1–10, each ≤64 chars · `max` 15 (1–50) · `top_seed` 6 (1–20) · `rerank` 0 (0–50) | text `tier⇥refs⇥slug⇥type` (or `tier⇥score⇥slug⇥type` when reranked) plus a trailing `suggested_next: …` line; JSON `{text, rows[], suggested_next, truncated}` |
-| `wiki_pack` | After `wiki_expand(rerank=11)` for a factual briefing or comparison. Usually the last call. | `slugs` string[] 1–30, each ≤120 chars (`[[…]]`, `#anchor`, `\|alias`, `.md`, `wiki/…/` prefixes are tolerated) | text of `## slug  [type · conf X · status]` + `- claim` / `- (요약) …` / `- 관계) …`; JSON `{text, pages[], truncated}` |
-| `wiki_read_page` | Procedure/how-to questions, or to settle one claim the pack could not. | `slug` string ≤120 chars; aliases resolved once | full page text incl. frontmatter (200 KB cap); JSON `{slug, resolved_from_alias, path, frontmatter{type, confidence, status, superseded_by?, last_confirmed?}, text, truncated}` |
-| `wiki_search` | Fallback only, when `wiki_expand` returned too few candidates. | `terms` string[] 1–10 · `top` 8 (1–50) — a cap, not a fill | text `distinct/total⇥slug⇥type`, or `no matches for: <terms>`; JSON `{text, rows[], matched, truncated}` |
+| `wiki_expand` | **First call for every wiki question.** Lexical seeds → 1-hop neighbours → MoC members, optionally BM25-reranked. | `terms` string[] 1–10, each ≤64 chars · `max` 15 (1–50) · `top_seed` 6 (1–20) · `rerank` 0 (0–50) | text `tier⇥refs⇥slug⇥type` (or `tier⇥score⇥slug⇥type` when reranked) plus a trailing `suggested_next: …` line; JSON (with `LLMWIKI_STRUCTURED=1`) `{text, rows[], suggested_next, truncated}` |
+| `wiki_pack` | After `wiki_expand(rerank=11)` for a factual briefing or comparison. Usually the last call. | `slugs` string[] 1–30, each ≤120 chars (`[[…]]`, `#anchor`, `\|alias`, `.md`, `wiki/…/` prefixes are tolerated) | text of `## slug  [type · conf X · status]` + `- claim` / `- (요약) …` / `- 관계) …`; JSON (with `LLMWIKI_STRUCTURED=1`) `{text, pages[], truncated}` |
+| `wiki_read_page` | Procedure/how-to questions, or to settle one claim the pack could not. | `slug` string ≤120 chars; aliases resolved once | full page text incl. frontmatter (200 KB cap); JSON (with `LLMWIKI_STRUCTURED=1`) `{slug, resolved_from_alias, path, frontmatter{type, confidence, status, superseded_by?, last_confirmed?}, text, truncated}` |
+| `wiki_search` | Fallback only, when `wiki_expand` returned too few candidates. | `terms` string[] 1–10 · `top` 8 (1–50) — a cap, not a fill | text `distinct/total⇥slug⇥type`, or `no matches for: <terms>`; JSON (with `LLMWIKI_STRUCTURED=1`) `{text, rows[], matched, truncated}` |
 
 `terms` may also be sent as a single space-separated string; it is split at the handler. Integers may arrive as numeric strings. Anything else is rejected with a message naming the offending input.
 
@@ -259,7 +261,7 @@ All four return the human/parity text in `content[0].text` **and** a JSON object
 | Factual briefing / comparison | `wiki_expand(terms, rerank=11)` → `wiki_pack(slugs)` → answer |
 | Procedure / how-to | `wiki_expand(terms, max=8)` → `wiki_read_page(slug)` for the candidates |
 
-`wiki_expand` computes this for you and reports it as `suggested_next` (`answer` when `max ≤ 6`, `wiki_pack` when `rerank > 0`, otherwise `wiki_read_page`) — in the JSON *and* as the last line of the text. The same table is in the server's `instructions` and in each tool's description, so clients that ignore `instructions` still get it.
+`wiki_expand` computes this for you and reports it as `suggested_next` (`answer` when `max ≤ 6`, `wiki_pack` when `rerank > 0`, otherwise `wiki_read_page`) — as the last line of the text (and as a JSON field with `LLMWIKI_STRUCTURED=1`). The same table is in the server's `instructions` and in each tool's description, so clients that ignore `instructions` still get it.
 
 ### Answer conventions the server asks for
 
@@ -297,7 +299,9 @@ Usage:
         <c> = claude-code | codex | gemini | agy | cursor | windsurf | claude-desktop | vscode
   llmwiki-mcp --once <search|expand|pack> <args…> --root <vault>   (same output as the Python scripts)
   llmwiki-mcp --version | --help
-Env: LLMWIKI_ROOT (vault path), LLMWIKI_DEBUG=1 (per-tool timings on stderr)
+Env: LLMWIKI_ROOT (vault path), LLMWIKI_DEBUG=1 (per-tool timings on stderr),
+     LLMWIKI_CACHE=0|1 (in-process cache; default on for the server, off for --once/--selftest),
+     LLMWIKI_STRUCTURED=1 (also send structuredContent + outputSchema; default: text only)
 ```
 
 - **`--root` / `LLMWIKI_ROOT`** — `--root` wins. The path is `realpath`-normalized; `<root>/wiki` must exist, must be a real directory (not a symlink), and must resolve to exactly `<root>/wiki`. Otherwise the process prints one line to stderr and exits 2, e.g. `vault root required: pass --root <path> or set LLMWIKI_ROOT`.
@@ -321,6 +325,7 @@ Env: LLMWIKI_ROOT (vault path), LLMWIKI_DEBUG=1 (per-tool timings on stderr)
   Integer options follow Python's `int()` strictness — `--top 1.5` is an error, not `1`.
 - **`--version`, `--help`** — print and exit 0.
 - **`LLMWIKI_DEBUG=1`** — per-tool timings on stderr (`[llmwiki] wiki_pack 12ms`). Query terms, slugs, page contents, and the vault path are never logged. stdout stays reserved for JSON-RPC.
+- **`LLMWIKI_CACHE=0|1`** — force the in-process cache off or on. Unset, it is **on for the MCP server** (a long-lived process where it pays off) and **off for `--once` and `--selftest`** (one-shot processes never get a hit, so the cache would only add its `lstat` scan; `--selftest`'s `buildGraph_ms` keeps its original meaning). With `0`, every call walks, reads and rebuilds exactly as before the cache existed — use it to rule the cache out when results look wrong.
 
 ---
 
@@ -331,7 +336,7 @@ Env: LLMWIKI_ROOT (vault path), LLMWIKI_DEBUG=1 (per-tool timings on stderr)
 | Budget | Value |
 |---|---|
 | Response text | 200 KB **UTF-8 bytes** (truncated on a codepoint boundary, marker `…[truncated at 200 KB]`, `truncated: true`) |
-| `wiki_pack` `structuredContent.pages` | same 200 KB budget — pages are dropped from the end, then relations, then claims |
+| `wiki_pack` `structuredContent.pages` (only with `LLMWIKI_STRUCTURED=1`) | same 200 KB budget — pages are dropped from the end, then relations, then claims |
 | Whole response envelope (text + JSON) | 200 KB; if it still does not fit after successive shrinking the call returns `isError` |
 | Frontmatter scalar | 4 KiB each |
 | `terms` | ≤10 items, ≤64 chars each |
@@ -355,7 +360,11 @@ Exceeding a vault or pack limit raises a named error rather than silently return
 - **Symlinks inside `wiki/` are skipped entirely**, files and directories alike. Pages reachable only through a symlink are invisible.
 - **OneDrive / iCloud / cloud-on-demand files** can be very slow on first read while they are hydrated. Warm reads are unaffected.
 - **stdio only.** No HTTP/SSE transport, no authentication, no multi-tenant use. It is a local single-user tool.
-- **The graph is rebuilt on every call** (v1 — it matches the Python scripts exactly). Measured on macOS/Apple Silicon with Node 24: ≈31–37 ms for a 309-page vault, ≈50–90 ms for 1,000 pages. Process start-up adds ~110 ms, paid once for a stdio server. An in-process cache is planned but not present.
+- **Every call still walks the vault and re-checks the boundary**; only reading and graph assembly are cached (see *Caching*). Measured on macOS/Apple Silicon with Node 24: a cold call is ≈50 ms for a 309-page vault and ≈190 ms for 1,000 pages; a warm call is ≈9 ms and ≈24 ms. Process start-up adds ~110 ms, paid once for a stdio server.
+- **The cache key is `(path, dev, ino, mode, size, mtime_ns, ctime_ns)` per file, plus the vault's realpath.** `ctime` is what makes restored timestamps safe: `cp -p`, `rsync --times` and `touch -t` put `mtime` back, but the kernel still bumps `ctime`, so the cache misses and re-reads. A file replaced by a different file or a symlink changes `ino`/`mode` and also misses. Snapshots containing a file modified in the last 2 seconds are never stored, because a same-size edit inside the filesystem's timestamp resolution would be indistinguishable.
+- **Snapshots with a file modified in the last 2 seconds are treated as unstable**: nothing is stored *and* nothing cached is reused — every file is re-read on that call.
+- **Memory caps are logical, not RSS**: up to 4 vaults are kept (LRU), each holding at most 256 MiB of page text, 512 MiB across all vaults, plus 128 MiB of derived strings. These count string payload only — object overhead comes on top.
+- **Where the `ctime` defence does not hold**: Node reports the status-change time as `ctime` on POSIX filesystems and on NTFS (creation time is the separate `birthtime`), but **FAT/exFAT and some network filesystems** have no reliable change time. On such a volume, a same-size edit whose `mtime` is restored by an external tool can be served stale until the file changes again. Run with `LLMWIKI_CACHE=0` there.
 - **Rerank scores are floating point.** `Math.log` in V8 and `math.log` in CPython can differ by 1 ULP, so a printed `.1f` score may differ by 0.1 at an exact rounding boundary; parity tests allow ±0.05 on the score column and require exact row order.
 - **`index.md` and `log.md` are out of scope** — they live outside `wiki/`.
 

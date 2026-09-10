@@ -63,11 +63,11 @@ tests/parity.py           (저장소 루트, 기존 smoke.py 옆) Python↔Node 
 
 ## 3. 도구 계약
 
-공통: 모든 도구는 `content[0].text`에 **사람이 읽는 텍스트**를, `structuredContent`에 JSON을 함께 반환한다. Python 스크립트와의 **바이트 동일 보장은 `--once` CLI** 에 있다(패리티 테스트 대상). MCP 응답은 `wiki_expand` 에 `suggested_next: …` 한 줄을 덧붙이고 200KB 예산을 적용한다. 텍스트는 패리티·사람 가독용, JSON은 에이전트 파싱용. 오류는 MCP `isError: true` + 한 줄 메시지.
+공통: 모든 도구는 `content[0].text`에 **사람이 읽는 텍스트**를 반환한다. `structuredContent`(+ 도구별 `outputSchema`)는 **`LLMWIKI_STRUCTURED=1` 일 때만** 함께 반환한다 — 아래 'P4-27+ 결정' 참조. Python 스크립트와의 **바이트 동일 보장은 `--once` CLI** 에 있다(패리티 테스트 대상). MCP 응답은 `wiki_expand` 에 `suggested_next: …` 한 줄을 덧붙이고 200KB 예산을 적용한다. 텍스트는 패리티·사람 가독용, JSON은 에이전트 파싱용. 오류는 MCP `isError: true` + 한 줄 메시지.
 
 동일성의 정의: Python `stdout` 전체(줄 구분 `\n`, **마지막 개행 포함**)와 `--once` 출력이 바이트 동일. MCP `text`도 같은 문자열(개행 제거 안 함). Windows에서도 `\n` 고정(Python 쪽은 `sys.stdout.reconfigure(newline="\n")`을 patch 범위에 포함 — §7). 예외는 rerank 점수 열 하나(§7 허용오차).
 
-`structuredContent`는 MCP 2025-06-18 스펙·TS SDK 표준 필드다(외부리뷰 2026-09-09에서 "비표준" 지적 → SDK 문서로 반증·기각). 각 도구에 **`outputSchema`를 선언**한다 — 선언 시 SDK가 전송 전 검증하고, 검증 클라이언트는 불일치 결과를 거부하므로 스키마와 실제 JSON을 단위 테스트로 맞춘다. 구형 클라이언트는 `content[0].text`만 보므로 텍스트가 1차 표현이다.
+`structuredContent`는 MCP 2025-06-18 스펙·TS SDK 표준 필드다(외부리뷰 2026-09-09에서 "비표준" 지적 → SDK 문서로 반증·기각). **`LLMWIKI_STRUCTURED=1` 일 때** 각 도구에 `outputSchema`를 선언한다(P4-27+ 이후 기본은 미선언·텍스트만) — 선언 시 SDK가 전송 전 검증하고, 검증 클라이언트는 불일치 결과를 거부하므로 스키마와 실제 JSON을 단위 테스트로 맞춘다. 구형 클라이언트는 `content[0].text`만 보므로 텍스트가 1차 표현이다.
 
 **입력 내결함성(외부리뷰 #6 반영).** LLM 클라이언트의 흔한 변형을 도구 진입점에서 정규화한다: `terms`가 문자열이면 공백 분할 → 배열; `slug`/`slugs` 항목은 양끝 공백·`[[`·`]]`·`.md`·`wiki/…/` 접두를 제거. 정규화 후 검증 실패는 `isError` + 어떤 입력이 왜 거부됐는지 한 줄. **정규화는 런타임(핸들러 첫 줄)에서 하고 스키마에는 드러내지 않는다** — 아래 호환 규칙 때문.
 
@@ -78,6 +78,7 @@ tests/parity.py           (저장소 루트, 기존 smoke.py 옆) Python↔Node 
 - **`instructions`에 의존하지 않는다.** Claude Code는 모델에 노출하지만 Codex·Gemini·Cursor는 미확인 → description 한 줄 + `suggested_next`로도 라우팅이 성립해야 한다(PRD 지표 "규칙 파일 없이 준수").
 - **prompts/resources는 선택 기능.** 클라이언트 지원이 갈리므로 필수 경로에 두지 않는다. v1은 tools만.
 - **`structuredContent`를 못 읽는 클라이언트**는 `content[0].text`로 동작. 텍스트가 1차 표현인 이유.
+- **P4-27+ 결정(2026-09-10, E2E 실측 근거) — 구조화 출력은 기본 off, opt-in.** P2 에서는 `structuredContent`+`outputSchema` 를 항상 반환하기로 했으나, Claude Code 2.1.267 실클라이언트 E2E 에서 클라이언트가 `structuredContent` JSON 을 모델에 넘기고, 우리 structuredContent 가 `text` 와 `rows`/`pages` 를 이중으로 담아 모델 입력이 텍스트 대비 **2.06~4.24배**(pack 9,715B → 20,015B)임을 확인했다. 이 서버의 소비자는 LLM 이고 리트리벌 설계의 토큰 절감(A/B −55%)은 텍스트(TSV) 기준이므로 기본은 텍스트만 보낸다. `text` 만 빼는 안(1안)은 기각 — JSON 행 표현 자체가 TSV 보다 무겁다(expand 2.6배). MCP 스펙상 outputSchema 선언 = structuredContent 전송 의무라 둘은 `LLMWIKI_STRUCTURED=1` 로 함께 켠다. 응답 JSON 전체 200KB 예산은 **두 모드 모두** 적용(기본 모드는 JSON 이스케이프로 부푼 envelope 을 재측정·축소 — 외부리뷰 P4-27 MAJOR). 텍스트는 작은 응답에서 두 모드 바이트 동일, envelope 을 넘는 큰 응답에서만 opt-in 쪽이 더 짧다(text 가 structuredContent 에 한 번 더 실리므로 — 의도된 차이, 테스트 고정). outputSchema 검증(fail-closed)은 opt-in 경로에 유지. opt-in 모드의 `content[0].text` 가 structuredContent 의 JSON 직렬화가 아니라 TSV 인 것은 스펙 권고(SHOULD)와 다른 **의도된 예외**(텍스트 클라이언트·Python 패리티가 이 텍스트에 의존). `--once` 패리티 무영향.
 - **stdout 순수성.** transport 외 stdout 쓰기 0. `console.log` ESLint 금지, smoke가 기동 직후 stdout 첫 바이트가 `{`인지 검사.
 
 ### 3.1 `wiki_search` — lexical 파일 랭킹 (search.py --files)
@@ -191,7 +192,15 @@ description 요지: "절차·how-to 또는 팩이 불충분한 특정 주장 확
 ## 6. 성능
 
 - v1: 호출마다 `buildGraph` (Python과 동일 동작). 실 볼트 315 페이지 기준 Python <1s → Node 동급 예상. 파일 read는 `fs.promises.readFile`을 동시성 32로 병렬(순서는 정렬된 목록 기준으로 재조립). 파일을 조용히 **스킵하지 않는다**(Python 과 결과가 달라지므로 — 외부리뷰 #12). 대신 P2 리뷰 반영으로 16MiB 초과 시 **명시적 오류**(VaultLimitError)로 실패한다 — 결과를 바꾸지 않으면서 무제한 read 를 막는 절충(§5). stdio 서버는 단일 클라이언트라 이벤트 루프 블로킹은 수용.
-- v1.1(후속): 프로세스 내 캐시. 키 = `(relpath, mtimeMs, size)` 전 파일 스냅샷. 호출 시 `readdir+stat` 스캔(수 ms)으로 변경 감지 → 변경 파일만 재파싱, 그래프는 통째 재구성(인링크 때문). 패리티 테스트는 캐시 on/off 양쪽 실행.
+- v1.1(**2026-09-10 구현 — P4**, 외부리뷰 1차 반영): 프로세스 내 캐시 `src/cache.ts`. 호출 시 `walkMd`(경계 검사 포함) + `lstat` 스캔으로 변경 감지 → 변경 파일만 재파싱, 그래프는 통째 재구성(인링크 때문). 패리티는 캐시 on/off 양쪽 실행(픽스처 56 · 실볼트 20 · 퍼징 200, 전부 동일 — CI 에 on/off 두 단계로 고정).
+  - **캐시 키** = 볼트 realpath + 파일별 `(경로, dev, ino, mode, size, mtimeNs, ctimeNs)`. `ctime` 이 핵심이다 — 내용·권한·이름이 바뀌면 커널이 올리고 userland 가 되돌릴 수 없어서 `cp -p`·`rsync --times`·`touch -t` 로 mtime·size 를 복원해도 적중하지 않는다(codex 1차 BLOCKER-1). `dev`·`ino`·`mode` 가 들어가므로 파일이 다른 파일·심볼릭 링크로 교체돼도 미스다(codex 1차 BLOCKER-2). Node 의 `ctime` 은 POSIX·NTFS 모두 **상태 변경 시각**이다(생성 시각은 `birthtime` — Node v24 공식 문서 "Stat time values"). 1차 반영 때 "Windows ctime = 생성 시각" 이라 적은 것은 오류였고 2차 리뷰(codex B3)가 그 문장을 근거로 삼았다 → 정정. 방어가 실제로 성립하지 않는 곳은 **FAT/exFAT·일부 네트워크 FS**(변경 시각 없음/약함)이며 README 한계에 `LLMWIKI_CACHE=0` 권고로 기재.
+  - **순회는 캐시하지 않는다.** 심볼릭 링크 스킵·realpath 경계(§5)는 호출마다 그대로 수행되고 캐시는 그 뒤에 붙는다 — 캐시 적중이 보안 규칙을 우회할 수 없다.
+  - **타임스탬프 해상도 방어**: 스냅샷에 최근 2s(`FRESH_WINDOW_MS`) 안에 수정된 파일이 있으면 '불안정'으로 보고 **저장도, 기존 캐시 사용도 하지 않는다**(그래프 적중·텍스트 재사용 모두 금지, 전량 재독 — codex 2차 BLOCKER-1: 저장만 막고 적중은 허용하던 구멍). 단 `FUTURE_SKEW_MS`(5s)보다 더 미래인 mtime 은 시계 차이로 보고 캐시를 막지 않는다 — 막으면 미래 타임스탬프 파일 하나가 그 볼트의 캐시를 영구 무력화한다(agy 1차 BLOCKER-1).
+  - **파생값도 캐시한다**(P4-13+): lex haystack·bm25 `scoreText`·`dl` 은 term 과 무관해 노드 수명 동안 재사용한다(WeakMap). 예산은 그래프를 새로 조립할 때 리셋한다(agy 1차 BLOCKER-2: 전역 카운터가 계속 늘면 상한 초과 후 파생 캐시가 영구히 멈춘다). 측정 분해에서 buildGraph 는 호출 비용의 29% 뿐이라 그래프만 캐시하면 ROI 가 나지 않는다.
+  - **메모리**: 텍스트 캐시 root 당 256MiB — 넘으면 **그래프도 저장하지 않는다**(그래프가 본문을 쥐고 있어 텍스트 상한을 우회하던 구멍, codex 2차 MAJOR-1). 파생 메모 128MiB 는 **살아 있는 전 root 의 합**으로 계산하고, 저장된 그래프의 노드에만 매단다(세대 번호로 확인). 볼트 4개까지 LRU 로 유지(`MAX_ROOTS`)하되 **전 root 텍스트 합 512MiB**(`TOTAL_TEXT_BUDGET_BYTES`)를 넘으면 가장 오래 안 쓴 다른 root 를 비운다(codex 3차 MAJOR-2). 누적 상한 `MAX_TOTAL_BYTES` 는 캐시 적중분까지 **읽는 즉시** 센다(codex 3차 MAJOR-1). 상한은 전부 문자열 payload 기준 논리 상한이며 RSS 상한이 아니다. 스냅샷 lstat 은 동시성 64 풀(agy 3차 MINOR-1). 프로세스 종료 시 소멸, 디스크 캐시 없음.
+  - **상위 디렉터리 교체 경쟁(codex 2차 BLOCKER-2)은 캐시가 늘리지 않는다**: walk 뒤에 상위 디렉터리가 외부 링크로 바뀌어 한 호출이 외부 본문을 읽어도, 그 본문은 외부 파일의 `dev/ino` 로 키가 잡힌다. 다음 호출에서 교체가 유지되면 walkMd 의 realpath 검사가 그 파일을 빼고, 원복되면 신원이 달라 미스가 난다 — **어느 쪽이든 캐시된 외부 본문은 다시 제공되지 않는다.** 노출 범위는 캐시가 없을 때의 한 호출과 같고, 그 잔여 위험 자체는 P2-42+ 가 로컬 단일 사용자 범위에서 수용한 것이다(Node 에 `openat` 계열 API 가 없어 구성요소 고정 순회는 불가).
+  - **스위치·기본값**: `LLMWIKI_CACHE=0` 이면 stat 스캔조차 하지 않고 v1 경로, `=1` 이면 강제로 켠다. 미지정이면 **서버는 켜고 `--once`·`--selftest` 는 끈다**(배선 점검 2026-09-10: 1회성 프로세스는 적중 기회 없이 stat 스캔만 더해져 1,000p cold 가 +7.7% 느려졌고, `--selftest` 의 `buildGraph_ms` 의미가 바뀌었다). CI 패리티 ON 단계는 `LLMWIKI_CACHE=1` 로 캐시 경로를 강제한다.
+  - 실측(인프로세스 median of 10): 309p off 48.4 → **2회차 9.2ms**(-81.6%) · 1,000p off 195.4 → **26.4ms**(-87.0%) · 2,000p off 379.5 → **48.9ms**. warm 의 고정 비용은 walk+lstat 스캔(309p 6.1 · 1,000p 19.3 · 2,000p 35.6ms)이다.
 - OneDrive 온디맨드 파일(클라우드 전용 상태)은 첫 read가 느릴 수 있음 → README 한계에 기재.
 
 ## 7. 패리티 테스트 (`tests/parity.py`)

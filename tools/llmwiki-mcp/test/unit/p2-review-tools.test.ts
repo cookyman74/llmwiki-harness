@@ -264,7 +264,7 @@ describe("review: server output validation (outputSchema fail-closed)", () => {
       ["wiki_read_page", { slug: "concept-reranking" }],
     ];
     for (const [name, args] of cases) {
-      const r = await callTool(FIXTURE_VAULT, name, args);
+      const r = await callTool(FIXTURE_VAULT, name, args, undefined, true);
       expect(r.isError, name).toBeFalsy();
       expect(r.structuredContent, name).toBeDefined();
       expect(validateSubset(schemaOf(name), r.structuredContent), name).toEqual([]);
@@ -272,7 +272,7 @@ describe("review: server output validation (outputSchema fail-closed)", () => {
   });
 
   it("unknown tool name → isError (not a thrown protocol error)", async () => {
-    const r = await callTool(FIXTURE_VAULT, "wiki_nope", {});
+    const r = await callTool(FIXTURE_VAULT, "wiki_nope", {}, undefined, true);
     expect(r.isError).toBe(true);
     expect(r.content[0].text).toMatch(/unknown tool: wiki_nope/);
     expect(r.structuredContent).toBeUndefined();

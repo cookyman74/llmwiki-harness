@@ -30,7 +30,7 @@ beforeAll(async () => {
   const kr = Array.from({ length: 3000 }, (_, i) => `- claim:: 한글 클레임 ${i} ${"가".repeat(60)}`).join("\n");
   await writeFile(path.join(root, "wiki", "L3-semantic", "big-kr.md"), `---\ntype: fact\nconfidence: 0.9\n---\n${kr}\n`, "utf8");
   await writeFile(path.join(root, "wiki", "L3-semantic", "tiny.md"), "---\ntype: concept\n---\n# tiny\n- claim:: 아주 작은 주장\n", "utf8");
-  c = await connect(root);
+  c = await connect(root, { structured: true });
 });
 afterAll(async () => {
   await c?.close();

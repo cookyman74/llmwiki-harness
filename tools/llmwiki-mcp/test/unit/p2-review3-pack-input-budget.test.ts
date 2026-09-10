@@ -33,7 +33,7 @@ beforeAll(async () => {
     await writeFile(path.join(root, "wiki", "L3-semantic", `${slug}.md`), `${head}${slug} ${"x".repeat(PAGE_BYTES - head.length - slug.length - 2)}\n`, "utf8");
   }
   await writeFile(path.join(root, "wiki", "L3-semantic", "small.md"), "---\ntype: concept\n---\n# small\n- claim:: 작은 주장\n", "utf8");
-  c = await connect(root);
+  c = await connect(root, { structured: true });
 }, TIMEOUT);
 
 afterAll(async () => {

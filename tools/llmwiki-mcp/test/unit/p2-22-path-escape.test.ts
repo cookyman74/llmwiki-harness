@@ -8,7 +8,7 @@ import { FIXTURE_VAULT, connect, text, type Connected } from "./p2-helpers.js";
 
 let c: Connected;
 beforeAll(async () => {
-  c = await connect(FIXTURE_VAULT);
+  c = await connect(FIXTURE_VAULT, { structured: true });
 });
 afterAll(async () => c.close());
 
