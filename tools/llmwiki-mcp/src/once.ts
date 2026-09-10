@@ -4,7 +4,7 @@
  */
 import path from "node:path";
 import { bm25Rank } from "./bm25.js";
-import { TIER_NAME, expand, lexicalSeeds } from "./expand.js";
+import { TIER_NAME, expand, lexIndex, lexicalSeeds } from "./expand.js";
 import { renderExpand, renderNoSeed, renderPack, renderRerank, renderSearch } from "./format.js";
 import { buildGraph } from "./graph.js";
 import { pack, type PackPage } from "./pack.js";
@@ -90,9 +90,10 @@ export async function searchData(rawTerms: string[], root: string, top: number):
 export async function expandData(rawTerms: string[], o: ExpandOptions): Promise<ExpandData> {
   const G = await buildGraph(path.join(o.root, "wiki"));
   const tl = normalizeTerms(rawTerms); // Python: tl = [t.lower() for t in terms if t.strip()]
-  const seeds = lexicalSeeds(G, tl, o.topSeed);
+  const idx = lexIndex(G, tl); // 전 노드 lex_score 1회 — seeds·expand 가 공유(P4-12+)
+  const seeds = lexicalSeeds(G, tl, o.topSeed, idx);
   if (seeds.length === 0) return { text: renderNoSeed(rawTerms), rows: [] };
-  const rows = expand(G, tl, seeds, o.max);
+  const rows = expand(G, tl, seeds, o.max, idx);
   const typeOf = (s: string): string => G.nodes.get(s)?.type ?? "?";
   if (o.rerank) {
     const pool = rows.map((r) => r.slug);
