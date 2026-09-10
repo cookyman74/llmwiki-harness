@@ -5,7 +5,7 @@
  * 여기의 모든 함수는 Python 문자열 API 의미를 **그대로** 재현한다. JS 기본 API 와 다른 지점은
  * 각 함수 주석에 명시한다(추측 금지 — 대응표와 단위 테스트가 근거).
  */
-import { promises as fs, type Dirent } from "node:fs";
+import { promises as fs, constants as fsConstants, type Dirent } from "node:fs";
 import path from "node:path";
 import { PY_LOWER_OVERRIDES } from "./pylower-table.js";
 
@@ -152,11 +152,29 @@ export function decodeText(buf: Uint8Array): string {
   return s.replace(/\r\n/g, "\n").replace(/\r/g, "\n");
 }
 
+/** 볼트 규모 상한(리뷰 MAJOR: 무제한 read). 초과 시 조용히 결과를 바꾸지 않고 **명시적 오류**로 실패(패리티 보존). */
+export const MAX_FILE_BYTES = 16 * 1024 * 1024;
+export const MAX_FILES = 20000;
+export const MAX_DIRS = 5000; // codex 2차 #3: 디렉터리 수·깊이·누적 바이트 상한
+export const MAX_DEPTH = 32;
+export const MAX_TOTAL_BYTES = 512 * 1024 * 1024;
+export class VaultLimitError extends Error {}
+
 export async function read(p: string): Promise<string> {
+  // TOCTOU 완화(리뷰 BLOCKER): realpath 검사 뒤 파일이 심볼릭 링크로 바뀌어도 O_NOFOLLOW 가 최종 구성요소의 링크를 따라가지 않는다
+  // (POSIX 전용 — Windows 는 상수가 없어 0). 잔여 위험(상위 디렉터리 교체 경쟁)은 로컬 단일 사용자 도구 범위에서 수용.
+  const flags = fsConstants.O_RDONLY | (fsConstants.O_NOFOLLOW ?? 0);
+  let fh: Awaited<ReturnType<typeof fs.open>> | undefined;
   try {
-    return decodeText(await fs.readFile(p));
-  } catch {
-    return ""; // Python read(): OSError → ""
+    fh = await fs.open(p, flags);
+    const st = await fh.stat();
+    if (st.size > MAX_FILE_BYTES) throw new VaultLimitError(`file exceeds ${MAX_FILE_BYTES} bytes: ${JSON.stringify(path.basename(p))}`);
+    return decodeText(await fh.readFile());
+  } catch (e) {
+    if (e instanceof VaultLimitError) throw e;
+    return ""; // Python read(): OSError → ""  (링크 거부 ELOOP 도 여기로 — 내용 대신 빈 문자열)
+  } finally {
+    await fh?.close();
   }
 }
 
@@ -170,7 +188,27 @@ export interface MdFile {
  *  없는 보안 규칙이지만 픽스처에 링크가 없어 패리티 영향 없음). #1 */
 export async function walkMd(base: string): Promise<MdFile[]> {
   const out: MdFile[] = [];
-  async function visit(dir: string): Promise<void> {
+  // P2-17: 경계 검증 — 각 .md 의 realpath 가 base 의 realpath 하위인지 path.relative 로 판정(문자열 startsWith 금지).
+  // 심볼릭 링크 엔트리는 아래에서 이미 건너뛰지만, 상위 디렉터리가 링크인 경우 등 우회를 realpath 로 한 번 더 막는다.
+  let baseReal: string | null = null;
+  try {
+    baseReal = await fs.realpath(base);
+  } catch {
+    baseReal = null; // base 없음 → readdir 실패로 빈 결과
+  }
+  const inside = async (p: string): Promise<boolean> => {
+    if (!baseReal) return false;
+    try {
+      const rel = path.relative(baseReal, await fs.realpath(p));
+      return rel !== "" && !rel.startsWith("..") && !path.isAbsolute(rel);
+    } catch {
+      return false;
+    }
+  };
+  let dirCount = 0;
+  async function visit(dir: string, depth = 0): Promise<void> {
+    if (depth > MAX_DEPTH) throw new VaultLimitError(`vault directory depth exceeds ${MAX_DEPTH}`);
+    if (++dirCount > MAX_DIRS) throw new VaultLimitError(`vault exceeds ${MAX_DIRS} directories`);
     let entries: Dirent[];
     try {
       entries = await fs.readdir(dir, { withFileTypes: true });
@@ -186,10 +224,19 @@ export async function walkMd(base: string): Promise<MdFile[]> {
     }
     files.sort(cmpCodePoint);
     dirs.sort(cmpCodePoint);
-    for (const f of files) {
-      if (f.endsWith(".md")) out.push({ path: path.join(dir, f), slug: f.slice(0, -3) });
-    }
-    for (const d of dirs) await visit(path.join(dir, d));
+    // realpath 경계 검사는 파일별 순차 await 가 1,000 페이지에서 ~30ms 를 차지(P2 perf 측정) → 디렉터리 단위 병렬, 순서는 정렬 목록 기준 유지
+    const mds = files.filter((f) => f.endsWith(".md")).map((f) => ({ f, p: path.join(dir, f) }));
+    const ok = await Promise.all(mds.map((m) => inside(m.p)));
+    mds.forEach((m, i) => {
+      if (!ok[i]) {
+        // 경로만(내용 금지), JSON.stringify 로 개행·제어문자 이스케이프 → 로그 주입 방지(리뷰)
+        process.stderr.write(`[llmwiki] skipped: outside wiki boundary: ${JSON.stringify(path.relative(base, m.p))}\n`);
+        return;
+      }
+      out.push({ path: m.p, slug: m.f.slice(0, -3) });
+      if (out.length > MAX_FILES) throw new VaultLimitError(`vault exceeds ${MAX_FILES} markdown files`);
+    });
+    for (const d of dirs) await visit(path.join(dir, d), depth + 1);
   }
   await visit(base);
   return out;
@@ -232,11 +279,15 @@ export function parseAliases(aliases: string): string[] {
 export async function readAll(files: MdFile[], concurrency = 32): Promise<string[]> {
   const texts = new Array<string>(files.length);
   let next = 0;
+  let total = 0; // 누적 바이트 예산(codex 2차 #3) — 초과 시 명시적 오류
   async function worker(): Promise<void> {
     for (;;) {
       const i = next++;
       if (i >= files.length) return;
-      texts[i] = await read(files[i].path);
+      const t = await read(files[i].path);
+      total += Buffer.byteLength(t, "utf8");
+      if (total > MAX_TOTAL_BYTES) throw new VaultLimitError(`vault text exceeds ${MAX_TOTAL_BYTES} bytes in total`);
+      texts[i] = t;
     }
   }
   const n = Math.min(concurrency, Math.max(1, files.length));

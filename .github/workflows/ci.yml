@@ -59,6 +59,52 @@ jobs:
         run: python tests/parity.py
       # npm 패키지에 dist/·README.md·package.json 외 파일이 섞이지 않는지 검사 (P1-45).
       # bash 는 3 OS 러너 모두에 있음(Windows 는 Git Bash) — pwsh 기본 셸 회피.
+      - name: Read-only guard (no fs write APIs in src/)
+        shell: bash
+        working-directory: tools/llmwiki-mcp
+        run: |
+          # DESIGN §5 / P2-20 — 패키지는 볼트를 절대 쓰지 않는다. 쓰기 계열 fs API 가 src/ 에 나타나면 실패.
+          # 허용목록 방식(리뷰: 블랙리스트 정규식은 renameSync·rmdirSync·fs.open(…,"w")·fs["writeFile"] 등을 놓친다).
+          # src/ 의 모든 `fs.<x>` / `fs.promises.<x>` / `fh.<x>` 호출·참조를 추출해 읽기 전용 집합 밖이면 실패. 대괄호 접근·동적 접근은 금지.
+          python - <<'PY'
+          import re, sys, pathlib
+          # 1) import 구문 자체를 검사(2차 리뷰: named import `import { writeFile } from "node:fs/promises"` 사각지대):
+          #    fs 계열 모듈에서 가져올 수 있는 이름은 허용목록뿐, `* as` 네임스페이스·default import·require·동적 import 금지.
+          ALLOWED_IMPORT = {"promises", "constants", "readFileSync", "Dirent", "readFile", "readdir", "stat", "lstat", "realpath", "open"}
+          ALLOWED_MEMBER = {"readFile", "readdir", "stat", "lstat", "realpath", "open", "close", "constants", "promises", "readFileSync"}
+          FS_MOD = r"[\"'](?:node:)?fs(?:/promises)?[\"']"
+          bad = []
+          aliases = set()  # fs 네임스페이스 별칭(예: promises as fs) — 멤버 검사 대상
+          for f in sorted(pathlib.Path("src").rglob("*.ts")):
+              t = f.read_text(encoding="utf-8")
+              if re.search(r"import\s+\*\s+as\s+\w+\s+from\s+" + FS_MOD, t): bad.append(f"{f}: namespace import of fs")
+              if re.search(r"import\s+\w+\s+from\s+" + FS_MOD, t): bad.append(f"{f}: default import of fs")
+              if re.search(r"require\(\s*" + FS_MOD + r"\s*\)|import\(\s*" + FS_MOD + r"\s*\)", t): bad.append(f"{f}: dynamic fs import")
+              for m in re.finditer(r"import\s*\{([^}]*)\}\s*from\s*" + FS_MOD, t):
+                  for spec in m.group(1).split(","):
+                      spec = spec.strip().replace("type ", "")
+                      if not spec: continue
+                      orig, _, alias = [x.strip() for x in spec.partition(" as ")]
+                      if orig not in ALLOWED_IMPORT: bad.append(f"{f}: import {orig} from fs")
+                      if orig == "promises": aliases.add(alias or "promises")
+                      # named import 의 로컬 바인딩도 추적: `import { open as create }` 후 create(…,"w") 로 쓰기 우회(3차 리뷰 BLOCKER)
+                      if orig == "open":
+                          local = alias or "open"
+                          for c in re.finditer(re.escape(local) + r"\(([^)]*)\)", t):
+                              if re.search(r"O_WRONLY|O_RDWR|O_CREAT|O_APPEND|O_TRUNC|['\"][wa]", c.group(1)): bad.append(f"{f}: {local}() with write flags")
+                      elif alias and orig in ALLOWED_IMPORT and alias != orig:
+                          pass  # 읽기 전용 함수의 별칭은 허용
+              # 2) 멤버 접근 검사: fs·별칭·파일핸들(fh) 의 멤버는 읽기 전용 집합만
+              names = "|".join(sorted({"fs", "fh", *aliases}))
+              for m in re.finditer(r"\b(?:" + names + r")\??(?:\.promises)?\.([A-Za-z_]+)", t):
+                  if m.group(1) not in ALLOWED_MEMBER: bad.append(f"{f}: {m.group(0)}")
+              if re.search(r"\b(?:" + names + r")\s*\[", t): bad.append(f"{f}: bracket access to fs/fh")
+              for m in re.finditer(r"\b(?:" + names + r")\.open\(([^)]*)\)", t):
+                  if re.search(r"O_WRONLY|O_RDWR|O_CREAT|O_APPEND|O_TRUNC|['\"][wa]", m.group(1)): bad.append(f"{f}: fs.open with write flags")
+          if bad:
+              print("READ-ONLY GUARD FAIL:\n  " + "\n  ".join(bad)); sys.exit(1)
+          print("READ-ONLY GUARD OK")
+          PY
       - name: Pack content guard (npm pack --dry-run)
         shell: bash
         run: |

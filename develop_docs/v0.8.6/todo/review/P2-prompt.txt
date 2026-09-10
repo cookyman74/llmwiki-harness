@@ -1,0 +1,25 @@
+너는 외부 감사자(보안 중심)다. llmwiki MCP 서버(Node.js) 프로젝트의 P2(MCP 서버) 단계 산출물을 비판적으로 리뷰하라. 저장소는 현재 디렉터리(llmwiki-harness), 브랜치 feat/mcp-p2-server.
+
+먼저 읽을 것(맥락):
+- develop_docs/v0.8.6/todo/00-README.md, develop_docs/v0.8.6/todo/P2-mcp-server.md (체크리스트·DoD·1차 반영 표)
+- develop_docs/v0.8.6/DESIGN.md §3(도구 계약·다중 클라이언트 호환 규칙), §3.5(서버 메타·CLI), §5(보안), §8(등록 매트릭스)
+- develop_docs/v0.8.6/todo/review/P1-*.md (P1 리뷰에서 P2 로 이월된 지적: realpath 경계 검증)
+
+리뷰 대상:
+1. 서버 — tools/llmwiki-mcp/src/{server,tools,read,once,cli,print-config,vault}.ts
+   설계 결정: `McpServer`+zod 대신 저수준 `Server` + 수기 JSON Schema(이유: tools/list 에 `$schema`·`additionalProperties`·`execution` 자동 삽입 — 실측). 입력 정규화·검증은 런타임. 이 결정의 위험(SDK 가 해주던 것 중 잃은 것 — 예: outputSchema 검증, 스키마 진화)을 평가하라.
+   tools/list 실제 덤프: develop_docs/v0.8.6/todo/review/P2-tools-list.json
+2. 위협 모델 — 경로 탈출(slug 정규화·`path.relative` 경계·심볼릭 링크·대소문자 무시 FS·UNC/드라이브 경로·NUL 바이트·유니코드 정규화 NFC/NFD·긴 경로), 자원 소진(입력 상한·200KB 절단·1,000+ 페이지·동시 호출), 정보 유출(stderr 로그·오류 메시지에 경로/내용 노출·`--selftest` 출력), 쓰기 경로 0 보장(CI 가드 정규식이 실제로 막는가).
+3. 다중 클라이언트 호환 — 스키마 부분집합이 Gemini·Codex·Cursor·Claude 에서 거부될 요소가 남았는가(`integer` 타입, `enum`, `minLength` 등 각 클라이언트 수용 여부를 알면 근거와 함께), description 길이·언어 혼합·마지막 줄 라우팅, `instructions` 의존 없이 라우팅이 성립하는가, `structuredContent` 미지원 클라이언트에서 `content[0].text` 만으로 의미가 완결되는가.
+4. print-config — 8종 출력이 각 클라이언트의 실제 문법과 맞는가(agy `mcp add [flags] <name> -- <cmd…>`, codex `mcp add <NAME> -c key=value -- <COMMAND…>`, gemini/cursor/windsurf/claude-desktop `mcpServers`, vscode `servers`), Windows `cmd /c` 래핑, 셸 인용(공백·한글·`$`·백틱), `--global`.
+5. CLI — root 결정(`--root`→`LLMWIKI_ROOT`), realpath, `wiki/` 존재 확인, exit 코드, `--once` 와 MCP 도구가 같은 코드 경로인가(once.ts), stdout 순수성.
+6. 테스트 — tools/llmwiki-mcp/test/unit/p2-*.test.ts 가 위 위협을 실제로 검증하는가, 통과하도록 약화된 단언은 없는가.
+7. 체크리스트 무결성 — P2-mcp-server.md 의 `[x]` 가 산출물로 뒷받침되는가.
+
+출력 형식(한국어): 발견 사항을 심각도별로 나열한다.
+- [BLOCKER] 다음 단계(P3 배포) 진입 전 반드시 고쳐야 함
+- [MAJOR] 설계 결함, 고치지 않으면 후회
+- [MINOR] 개선 제안
+각 항목: 위치(파일·줄) / 문제 / 근거(코드 인용, 가능하면 공격 입력 예시) / 제안. 마지막에 "총평(P3 진입 가능 여부)" 한 단락. 칭찬은 생략하고 문제만 적어라.
+
+제약: 어떤 파일도 생성·수정·삭제하지 마라. 읽기와 분석(쓰기 없는 명령 실행 — node -e, python3 -c, npm test 등 — 허용)만 수행하고 결과는 응답 텍스트로만 출력하라. 실 볼트 경로(OneDrive)는 열지 마라.

@@ -15,7 +15,7 @@ describe("package scaffold", () => {
     expect(pkg.type).toBe("module");
     expect(pkg.bin["llmwiki-mcp"]).toBe("dist/cli.js");
   });
-  it("ships only runtime deps @modelcontextprotocol/sdk and zod", () => {
-    expect(Object.keys(pkg.dependencies).sort()).toEqual(["@modelcontextprotocol/sdk", "zod"]);
+  it("ships only runtime dep @modelcontextprotocol/sdk (zod dropped in P2 — hand-written JSON Schema)", () => {
+    expect(Object.keys(pkg.dependencies).sort()).toEqual(["@modelcontextprotocol/sdk"]);
   });
 });
