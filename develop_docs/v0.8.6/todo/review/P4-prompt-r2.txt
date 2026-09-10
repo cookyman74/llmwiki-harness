@@ -1,0 +1,59 @@
+너는 외부 감사자다. llmwiki MCP 서버(Node.js) 프로젝트의 P4(프로세스 내 mtime 캐시 v1.1) 단계 산출물을 비판적으로 리뷰하라. 저장소는 현재 디렉터리(llmwiki-harness), 브랜치 feat/mcp-p4-lex-index (커밋 2개: ace7c83 lex 1패스 공유, HEAD 캐시 도입).
+
+**이 단계의 위험은 속도가 아니라 정확성이다.** 캐시가 낡은 결과를 돌려주거나, 보안 규칙(심볼릭 링크 스킵·realpath 경계)을 우회하거나, Python 정본과 출력이 갈리면 실패다. 성능 수치가 좋다는 이유로 이 셋을 눈감아주지 마라.
+
+먼저 읽을 것:
+- develop_docs/v0.8.6/todo/00-README.md (완료 표시·리뷰 규칙), develop_docs/v0.8.6/todo/P4-cache-followup.md (체크리스트·DoD·교훈 절)
+- develop_docs/v0.8.6/DESIGN.md §5(보안)·§6(성능)·§7(패리티), PRD.md §3(지표)·§4(비목표)
+- tools/llmwiki-mcp/src/cache.ts (신설), src/graph.ts, src/search.ts, src/expand.ts, src/bm25.ts, src/vault.ts(walkMd·read·readAll·상한)
+- tools/llmwiki-mcp/test/unit/p4-cache.test.ts, test/unit/p4-12-lex-index.test.ts
+- tools/llmwiki-mcp/test/perf/cache-bench.mjs, test/perf/stage-bench.mjs
+- tools/llmwiki-mcp/README.md 의 Env·CLI·Limitations 절
+- 정본 비교용: .claude/skills/wiki-lint/scripts/scope-expand.py, search.py
+
+리뷰 관점:
+1. **무효화 누락(낡은 결과) 경로.** 캐시 키는 `(절대경로, mtimeMs, size)` 스냅샷이고, 최근 2s 안에 수정된 파일이 있으면 스냅샷을 저장하지 않는다(FRESH_WINDOW_MS). 이 방어가 실제로 충분한가? 다음을 구체적으로 따져라 — ① 파일 내용은 바뀌었는데 mtime·size 가 같고 2s 창 밖인 경우(예: 다른 프로그램이 mtime 을 되돌림, `cp -p`, rsync --times, git checkout) ② 시계 역행·NTP 보정 ③ 디렉터리만 바뀌는 경우(파일 rename 으로 slug 만 바뀜) ④ 심볼릭 링크·권한 변화로 stat 이 실패하다 성공하는 경우 ⑤ 서로 다른 두 볼트를 번갈아 조회할 때(rootCache 는 1개만 유지).
+2. **보안 규칙 우회.** walkMd 의 경계 검사·심볼릭 링크 스킵·`read()` 의 O_NOFOLLOW 가 캐시 적중 경로에서도 유효한가? 캐시된 **텍스트**가 경계 밖 파일의 내용을 담을 수 있는 경로가 있는가(예: 파일이 캐시된 뒤 링크로 교체되고 mtime·size 가 우연히 같은 경우)? P2-21(symlink leak)·P2-42+(TOCTOU) 테스트가 여전히 유효한지 확인하라.
+3. **파생값 캐시(P4-13+).** lex haystack·scoreText·dl 을 WeakMap 으로 노드에 매단다. 노드 객체가 재사용되는 조건이 원본 파일 변경과 정확히 일치하는가? `derived()` 의 `undefined` 판정, 누적 128MiB 상한 계산(문자열만 세고 숫자는 안 셈), 상한 초과 후 동작에 허점이 있는가?
+4. **상한·자원.** MAX_TOTAL_BYTES 를 캐시 적중분까지 세는 구현이 vault.readAll 과 같은 판정을 내는가? 캐시가 보유하는 메모리(텍스트 전량 + 파생 2배)에 상한이 없는 점은 어떤가? MAX_FILE_BYTES 검사는 캐시 적중 파일에서 건너뛰는데 문제가 되는가?
+5. **패리티·정본 일치.** P4-12+ 로 TS 의 lex 경로가 정본(2패스)과 구조가 다르다. 픽스처 56·퍼징 200·실볼트 20 이 이 분기를 실제로 덮는가, 아니면 우연히 통과할 여지가 있는가? 캐시 on/off 양쪽 실행이 CI 에 걸려 있는가(.github/workflows/ci.yml 확인)?
+6. **측정의 정직성.** cache-bench.mjs 가 재는 것이 주장(off/cold/warm/stat scan)과 일치하는가? warmup·측정 구간·median 처리에 자기기만이 있는가? P4-09 의 "1,000p 2회차 <100ms" 주장이 이 하네스로 입증되는가?
+7. **체크리스트 무결성.** P4-cache-followup.md 의 `[x]` 가 실제 산출물로 뒷받침되는가. 미충족(P4-11 publish)이 정직하게 `[ ] ⏸` 인가. P4-01 은 "트리거 미관측" 판정을 남긴 채 사용자 지시로 착수했는데, 그 경위 기술이 정확한가.
+8. 놓친 테스트 — 이 캐시에서 반드시 있어야 하는데 없는 케이스를 지적하라.
+
+출력 형식(한국어): 심각도별.
+- [BLOCKER] 병합 전에 반드시 고쳐야 함(낡은 결과·보안 우회·패리티 깨짐)
+- [MAJOR] 고치지 않으면 후회
+- [MINOR] 개선 제안
+각 항목: 위치(파일:줄) / 문제 / 근거(코드·테스트·명령 출력 인용) / 제안. 마지막에 "총평(병합 가능 여부)" 한 단락. 칭찬은 생략하고 문제만 적어라.
+
+제약: 어떤 파일도 생성·수정·삭제하지 마라. 읽기와, 상태를 바꾸지 않는 명령 실행만 허용한다(git log/diff, npm test, node dist/cli.js --once …, python3 tests/parity.py 등). **실 볼트 경로(OneDrive)는 열지 마라** — 픽스처 볼트(tools/llmwiki-mcp/test/fixtures/vault)만 쓴다. 네트워크로 무언가를 배포·등록하지 마라.
+
+────────────────────────────────────────────────────────────────────────
+## 2차 리뷰 (2026-09-10) — 1차 지적 반영 후
+
+1차에서 codex·agy 모두 "병합 불가"로 판정했다(BLOCKER 4·MAJOR 9·MINOR 4). 반영 커밋은 `e507525` 이고,
+판정표는 `develop_docs/v0.8.6/todo/P4-cache-followup.md` 의 "외부리뷰 반영" 표에 있다. 1차 원문은
+`review/P4-codex-2026-09-10.md`·`review/P4-agy-2026-09-10.md`.
+
+반영 요지:
+- 캐시 키를 볼트 realpath + 파일별 `(경로, dev, ino, mode, size, mtimeNs, ctimeNs)` 로 확장하고 `stat`→`lstat`
+  으로 바꿨다(비정규 파일은 저장 금지). ctime 으로 `cp -p`·`rsync --times`·chmod 를 잡는다.
+- '방금 수정' 창을 `[-FUTURE_SKEW_MS(5s), FRESH_WINDOW_MS(2s))` 로 바꿨다(미래 mtime 이 캐시를 영구
+  무력화하던 문제 / 반대로 `ageMs>=0` 만 쓰면 갓 쓴 파일을 놓치는 문제).
+- 파생 예산을 그래프 조립 시 리셋하고(`resetDerivedBudget`), 저장 **전** 예산을 확인하며 숫자도 계수하고
+  `has()` 로 undefined 를 인정한다. 텍스트 캐시 256MiB 상한, root 캐시는 `Map`(최대 4).
+- CI 에 `LLMWIKI_CACHE=0` 패리티 + `parity_fuzz.py` 단계를 추가했다.
+- `stage-bench.mjs` 는 캐시를 끄고 재고, `cache-bench.mjs` 는 "정확히 2회차" 를 재며 표준 median 을 쓴다.
+- 회귀 테스트 6건 추가(mtime 복원·chmod·미래 mtime·반복 수정·교차 root·search↔graph).
+
+이번 라운드에서 할 일:
+1. **위 반영이 실제로 지적을 막는지 코드로 확인하라.** 특히 ctime 방어가 어떤 경로에서 무력화되는지
+   (Windows, 파일시스템별 ctime 갱신 규칙, 컨테이너/네트워크 FS), `lstat` 교체가 놓친 창이 있는지.
+2. **새로 생긴 구멍**을 찾아라 — 키 확장으로 인한 오탐(불필요한 미스), `FUTURE_SKEW_MS` 경계, `Map` root
+   캐시의 축출 규칙, `readTexts` 의 저장/폐기 분기, `derived()` 의 예산 계산.
+3. 1차에서 **미해결로 남긴 것**의 타당성: walk↔snapshot 사이의 링크 교체(TOCTOU) 테스트 미추가,
+   상위 디렉터리 교체 경쟁을 P2-42+ 의 수용된 잔여 위험으로 둔 판단.
+4. 체크리스트·근거 파일이 실제 산출물과 일치하는지(P4-19+~P4-22+ 포함).
+
+1차에서 이미 반영된 항목을 다시 나열하지 말고, **남아 있는 문제와 새 문제만** 적어라.

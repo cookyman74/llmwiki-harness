@@ -11,7 +11,8 @@ import { chmod, mkdtemp, mkdir, rm, stat, symlink, utimes, writeFile } from "nod
 import os from "node:os";
 import path from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { cacheStats, resetCache } from "../../src/cache.js";
+import { FUTURE_SKEW_MS, cacheStats, getGraph, readTexts, resetCache, setCacheBudgetsForTest, snapshot } from "../../src/cache.js";
+import { walkMd } from "../../src/vault.js";
 import { buildGraph } from "../../src/graph.js";
 import { runExpand, runSearch } from "../../src/once.js";
 
@@ -219,7 +220,8 @@ describe("외부리뷰 반영 회귀", () => {
     expect(g2.nodes.get("a")?.text).not.toContain("alpha");
   });
 
-  it("[codex M3] 권한만 바뀌어도(chmod) 다시 읽는다", async () => {
+  // Windows 의 chmod 는 읽기 전용 비트만 바꾸므로 0o600↔0o644 가 무변경일 수 있다 — POSIX 에서만 판정.
+  it.skipIf(process.platform === "win32")("[codex M3] 권한만 바뀌어도(chmod) 다시 읽는다", async () => {
     const p = path.join(wiki(), "L3/a.md");
     const g1 = await buildGraph(wiki());
     await chmod(p, 0o600);
@@ -280,5 +282,100 @@ describe("외부리뷰 반영 회귀", () => {
     const e2 = await runExpand(["alpha"], { root, topSeed: 6, max: 15, rerank: 0 });
     expect(s2).toContain("b");
     expect(e2).toContain("b");
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// 외부리뷰 2차(2026-09-10 codex) 반영 회귀
+// ─────────────────────────────────────────────────────────────────────────────
+describe("외부리뷰 2차 반영 회귀", () => {
+  afterEach(() => setCacheBudgetsForTest(null));
+
+  it("[codex r2 B1] 불안정 스냅샷은 키가 같아도 그래프 적중·텍스트 재사용을 하지 않는다", async () => {
+    const base = wiki();
+    await buildGraph(base); // 안정 스냅샷으로 저장
+    const files = await walkMd(base);
+    const snap = await snapshot(base, files); // 저장된 것과 같은 신원·같은 키
+    expect(getGraph(base, snap)).not.toBeNull(); // 안정이면 적중
+
+    // 디스크 내용은 바뀌었는데 이 스냅샷 객체는 옛 신원을 들고 있다 — 옛 코드는 여기서 캐시 텍스트를 재사용했다.
+    await writeFile(path.join(base, "L3/a.md"), "---\ntype: concept\n---\n# A\nNEWTEXT. [[b]]\n", "utf8");
+    snap.storable = false; // '방금 수정' 창 안이라고 판정된 상황
+    expect(getGraph(base, snap)).toBeNull();
+    const texts = await readTexts(base, files, snap);
+    expect(texts[files.findIndex((f) => f.slug === "a")]).toContain("NEWTEXT");
+  });
+
+  it("[codex r2 m2] FUTURE_SKEW_MS 경계 — 창 안의 미래 mtime 은 불안정, 창 밖은 안정", async () => {
+    const p = path.join(wiki(), "L3/a.md");
+    const inside = new Date(Date.now() + FUTURE_SKEW_MS / 2);
+    await utimes(p, inside, inside);
+    await buildGraph(wiki());
+    expect(cacheStats(wiki()).hasGraph).toBe(false);
+
+    resetCache();
+    const beyond = new Date(Date.now() + FUTURE_SKEW_MS * 12);
+    await utimes(p, beyond, beyond);
+    await buildGraph(wiki());
+    expect(cacheStats(wiki()).hasGraph).toBe(true);
+  });
+
+  it("[codex r2 M1] 텍스트 예산을 넘으면 그래프도 저장하지 않는다(그래프가 본문을 쥐고 있으므로)", async () => {
+    setCacheBudgetsForTest({ text: 16 }); // 미니 볼트 본문보다 작게
+    const g1 = await buildGraph(wiki());
+    const g2 = await buildGraph(wiki());
+    expect(cacheStats(wiki()).hasGraph).toBe(false);
+    expect(cacheStats(wiki()).cachedFiles).toBe(0);
+    expect(g2).not.toBe(g1);
+    expect([...g2.nodes.keys()].sort()).toEqual(["a", "b"]); // 결과는 그대로
+  });
+
+  it("[codex r2 M1] 파생 예산은 살아 있는 전 root 의 합으로 지켜진다", async () => {
+    const other = await mkdtemp(path.join(os.tmpdir(), "llmwiki-p4-der-"));
+    try {
+      const dir = path.join(other, "wiki", "L3");
+      await mkdir(dir, { recursive: true });
+      await writeFile(path.join(dir, "z.md"), "---\ntype: fact\n---\n# Z\nalpha zeta\n", "utf8");
+      const t = Date.now() / 1000 - 30;
+      await utimes(path.join(dir, "z.md"), t, t);
+
+      setCacheBudgetsForTest({ derived: 120 });
+      const o = { topSeed: 6, max: 15, rerank: 11 };
+      const r1 = await runExpand(["alpha"], { root, ...o });
+      const r2 = await runExpand(["alpha"], { root: other, ...o });
+      expect(cacheStats().derivedBytes).toBeLessThanOrEqual(120);
+      // 예산에 막혀 메모를 못 해도 출력은 같다
+      setCacheBudgetsForTest(null);
+      resetCache();
+      expect(await runExpand(["alpha"], { root, ...o })).toBe(r1);
+      expect(await runExpand(["alpha"], { root: other, ...o })).toBe(r2);
+    } finally {
+      await rm(other, { recursive: true, force: true });
+    }
+  });
+
+  it("[codex r2 m1] root 축출은 LRU — 최근에 쓴 root 는 살아남는다", async () => {
+    const extra: string[] = [];
+    try {
+      for (let i = 0; i < 4; i++) {
+        const d = await mkdtemp(path.join(os.tmpdir(), `llmwiki-p4-lru${i}-`));
+        const dir = path.join(d, "wiki", "L3");
+        await mkdir(dir, { recursive: true });
+        await writeFile(path.join(dir, "x.md"), "---\ntype: fact\n---\n# X\nx\n", "utf8");
+        const t = Date.now() / 1000 - 30;
+        await utimes(path.join(dir, "x.md"), t, t);
+        extra.push(d);
+      }
+      const w = (d: string): string => path.join(d, "wiki");
+      await buildGraph(wiki()); // A
+      for (const d of extra.slice(0, 3)) await buildGraph(w(d)); // B C D → 4개 꽉 참
+      await buildGraph(wiki()); // A 를 다시 사용 — LRU 갱신
+      await buildGraph(w(extra[3])); // E → 가장 오래 안 쓴 B 가 축출돼야 한다
+      expect(cacheStats(wiki()).hasGraph).toBe(true);
+      expect(cacheStats(w(extra[0])).root).toBeNull();
+      expect(cacheStats().roots).toBe(4);
+    } finally {
+      for (const d of extra) await rm(d, { recursive: true, force: true });
+    }
   });
 });

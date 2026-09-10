@@ -1,0 +1,51 @@
+너는 외부 감사자다. llmwiki MCP 서버(Node.js) 프로젝트의 P4(프로세스 내 mtime 캐시 v1.1) 단계 산출물을 비판적으로 리뷰하라. 저장소는 현재 디렉터리(llmwiki-harness), 브랜치 feat/mcp-p4-lex-index (커밋 2개: ace7c83 lex 1패스 공유, HEAD 캐시 도입).
+
+**이 단계의 위험은 속도가 아니라 정확성이다.** 캐시가 낡은 결과를 돌려주거나, 보안 규칙(심볼릭 링크 스킵·realpath 경계)을 우회하거나, Python 정본과 출력이 갈리면 실패다. 성능 수치가 좋다는 이유로 이 셋을 눈감아주지 마라.
+
+먼저 읽을 것:
+- develop_docs/v0.8.6/todo/00-README.md (완료 표시·리뷰 규칙), develop_docs/v0.8.6/todo/P4-cache-followup.md (체크리스트·DoD·교훈 절)
+- develop_docs/v0.8.6/DESIGN.md §5(보안)·§6(성능)·§7(패리티), PRD.md §3(지표)·§4(비목표)
+- tools/llmwiki-mcp/src/cache.ts (신설), src/graph.ts, src/search.ts, src/expand.ts, src/bm25.ts, src/vault.ts(walkMd·read·readAll·상한)
+- tools/llmwiki-mcp/test/unit/p4-cache.test.ts, test/unit/p4-12-lex-index.test.ts
+- tools/llmwiki-mcp/test/perf/cache-bench.mjs, test/perf/stage-bench.mjs
+- tools/llmwiki-mcp/README.md 의 Env·CLI·Limitations 절
+- 정본 비교용: .claude/skills/wiki-lint/scripts/scope-expand.py, search.py
+
+리뷰 관점:
+1. **무효화 누락(낡은 결과) 경로.** 캐시 키는 `(절대경로, mtimeMs, size)` 스냅샷이고, 최근 2s 안에 수정된 파일이 있으면 스냅샷을 저장하지 않는다(FRESH_WINDOW_MS). 이 방어가 실제로 충분한가? 다음을 구체적으로 따져라 — ① 파일 내용은 바뀌었는데 mtime·size 가 같고 2s 창 밖인 경우(예: 다른 프로그램이 mtime 을 되돌림, `cp -p`, rsync --times, git checkout) ② 시계 역행·NTP 보정 ③ 디렉터리만 바뀌는 경우(파일 rename 으로 slug 만 바뀜) ④ 심볼릭 링크·권한 변화로 stat 이 실패하다 성공하는 경우 ⑤ 서로 다른 두 볼트를 번갈아 조회할 때(rootCache 는 1개만 유지).
+2. **보안 규칙 우회.** walkMd 의 경계 검사·심볼릭 링크 스킵·`read()` 의 O_NOFOLLOW 가 캐시 적중 경로에서도 유효한가? 캐시된 **텍스트**가 경계 밖 파일의 내용을 담을 수 있는 경로가 있는가(예: 파일이 캐시된 뒤 링크로 교체되고 mtime·size 가 우연히 같은 경우)? P2-21(symlink leak)·P2-42+(TOCTOU) 테스트가 여전히 유효한지 확인하라.
+3. **파생값 캐시(P4-13+).** lex haystack·scoreText·dl 을 WeakMap 으로 노드에 매단다. 노드 객체가 재사용되는 조건이 원본 파일 변경과 정확히 일치하는가? `derived()` 의 `undefined` 판정, 누적 128MiB 상한 계산(문자열만 세고 숫자는 안 셈), 상한 초과 후 동작에 허점이 있는가?
+4. **상한·자원.** MAX_TOTAL_BYTES 를 캐시 적중분까지 세는 구현이 vault.readAll 과 같은 판정을 내는가? 캐시가 보유하는 메모리(텍스트 전량 + 파생 2배)에 상한이 없는 점은 어떤가? MAX_FILE_BYTES 검사는 캐시 적중 파일에서 건너뛰는데 문제가 되는가?
+5. **패리티·정본 일치.** P4-12+ 로 TS 의 lex 경로가 정본(2패스)과 구조가 다르다. 픽스처 56·퍼징 200·실볼트 20 이 이 분기를 실제로 덮는가, 아니면 우연히 통과할 여지가 있는가? 캐시 on/off 양쪽 실행이 CI 에 걸려 있는가(.github/workflows/ci.yml 확인)?
+6. **측정의 정직성.** cache-bench.mjs 가 재는 것이 주장(off/cold/warm/stat scan)과 일치하는가? warmup·측정 구간·median 처리에 자기기만이 있는가? P4-09 의 "1,000p 2회차 <100ms" 주장이 이 하네스로 입증되는가?
+7. **체크리스트 무결성.** P4-cache-followup.md 의 `[x]` 가 실제 산출물로 뒷받침되는가. 미충족(P4-11 publish)이 정직하게 `[ ] ⏸` 인가. P4-01 은 "트리거 미관측" 판정을 남긴 채 사용자 지시로 착수했는데, 그 경위 기술이 정확한가.
+8. 놓친 테스트 — 이 캐시에서 반드시 있어야 하는데 없는 케이스를 지적하라.
+
+출력 형식(한국어): 심각도별.
+- [BLOCKER] 병합 전에 반드시 고쳐야 함(낡은 결과·보안 우회·패리티 깨짐)
+- [MAJOR] 고치지 않으면 후회
+- [MINOR] 개선 제안
+각 항목: 위치(파일:줄) / 문제 / 근거(코드·테스트·명령 출력 인용) / 제안. 마지막에 "총평(병합 가능 여부)" 한 단락. 칭찬은 생략하고 문제만 적어라.
+
+제약: 어떤 파일도 생성·수정·삭제하지 마라. 읽기와, 상태를 바꾸지 않는 명령 실행만 허용한다(git log/diff, npm test, node dist/cli.js --once …, python3 tests/parity.py 등). **실 볼트 경로(OneDrive)는 열지 마라** — 픽스처 볼트(tools/llmwiki-mcp/test/fixtures/vault)만 쓴다. 네트워크로 무언가를 배포·등록하지 마라.
+
+────────────────────────────────────────────────────────────────────────
+## 3차 리뷰 (2026-09-10) — 2차 지적 반영 후
+
+이력: 1차 codex·agy 모두 병합 불가(BLOCKER 4) → e507525 반영. 2차 codex 병합 불가(BLOCKER 3·MAJOR 3·MINOR 2)
+→ HEAD 에서 반영. 판정표는 `develop_docs/v0.8.6/todo/P4-cache-followup.md` "외부리뷰 반영" 표(p4-r2* 행),
+2차 원문은 `review/P4-codex-r2-2026-09-10.md`.
+
+2차 판정 요지(검증하라):
+- r2B1 **수용**: 불안정 스냅샷(`storable=false`)이면 `getGraph` 는 null, `readTexts` 는 전량 재독.
+- r2B2 **기각**: 상위 디렉터리 교체 경쟁 — 외부 본문은 외부 파일의 dev/ino 로 키가 잡혀 다음 호출에서
+  재제공되지 않는다(교체 유지 시 walkMd 가 제외, 원복 시 신원 불일치 미스). 이 논증이 틀렸다면 구체적
+  실행 순서로 반증하라.
+- r2B3 **부분 기각**: Node `ctime` 은 NTFS 에서도 상태 변경 시각(생성은 birthtime). 옛 주석 오류였다.
+  FAT/exFAT·네트워크 FS 는 README 한계로 둔다. 이 판단이 틀렸다면 근거(문서·libuv 소스)를 대라.
+- r2M1 **수용**: 텍스트 예산 초과 시 그래프 미저장, 파생 예산은 전 root 합, 저장 그래프 노드만 세대 등록.
+- r2M2 **기각**: CI 의 `npm run check` 가 vitest(p4-cache 21건 — 같은 프로세스 연속 호출·on/off)를 3-OS 에서 돌린다.
+- r2M3·m1·m2 수용(체크리스트 서술 갱신, LRU, 회귀 5건).
+
+이번 라운드: ① 위 반영·기각이 옳은지 코드로 확인 ② 새로 생긴 문제 ③ 남은 BLOCKER 가 있는지.
+이미 해결된 항목을 다시 나열하지 말고, **남은 문제와 새 문제만** 적어라. 문제가 없으면 없다고 적어라.

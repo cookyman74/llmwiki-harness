@@ -5,7 +5,7 @@
  * 아니면 alias2slug[lower] 로 정규화. 자기 링크 제외. 중복 slug 는 walk 순서상 **마지막 승**(dict 대입).
  */
 import path from "node:path";
-import { cacheEnabled, getGraph, readTexts, resetDerivedBudget, setGraph, snapshot } from "./cache.js";
+import { cacheEnabled, getGraph, readTexts, setGraph, snapshot } from "./cache.js";
 import { field, frontmatter, parseAliases, pyLower, pyStrip, readAll, walkMd, type MdFile } from "./vault.js";
 
 /** Python `LINK = re.compile(r"(?<!!)\[\[([^\]|#]+)")` — `![[…]]` 임베드 제외. #7 */
@@ -35,10 +35,8 @@ export async function buildGraph(base: string, files?: MdFile[]): Promise<Graph>
   const snap = await snapshot(base, files);
   const hit = getGraph(base, snap);
   if (hit) return hit;
-  const texts = await readTexts(base, files, snap);
-  resetDerivedBudget(); // 새 그래프 = 새 파생 예산(옛 노드는 GC 로 사라진다)
-  const G = assemble(files, texts);
-  setGraph(base, snap, G);
+  const G = assemble(files, await readTexts(base, files, snap));
+  setGraph(base, snap, G); // 저장 시 노드를 새 세대로 등록 — 파생 예산도 여기서 리셋된다
   return G;
 }
 
