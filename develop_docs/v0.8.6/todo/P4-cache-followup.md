@@ -1,12 +1,12 @@
 # P4 — (후속) 프로세스 내 mtime 캐시 v1.1
 
 ```
-status: review             # not-started | in-progress | review | done — 캐시 구현·검증 완료(P4-02~P4-10·P4-13+), **외부리뷰 1·2차 반영 완료·3차 대기**.
+status: done               # not-started | in-progress | review | done — 캐시 구현·검증 완료(P4-02~P4-10·P4-13+), **외부리뷰 3라운드 — 3차에서 codex·agy 모두 잔여 BLOCKER 0**.
                            # **P4-11(npm 0.2.0 publish)만 P3-08 의 0.1.0 publish 승인에 막혀 있다.**
                            # 착수 판정(P4-01)은 트리거 미관측이었으나 사용자 지시로 캐시를 열었다 — 그 경위를 P4-01 에 남긴다.
 started: 2026-09-10
-completed:
-external_review: 1차 done → review/P4-agy-2026-09-10.md(병합 불가, BLOCKER 2·MAJOR 3·MINOR 2) · review/P4-codex-2026-09-10.md(병합 불가, BLOCKER 2·MAJOR 6·MINOR 2) — 전건 판정·반영 · 2차 codex → review/P4-codex-r2-2026-09-10.md(병합 불가, BLOCKER 3·MAJOR 3·MINOR 2) — 전건 판정·반영 · 2차 agy **미수행**(agy CLI 인증 확인 실패 — 계정 프로필 조회 오류, 코드와 무관. 3차에 포함) · 3차 pending
+completed: 2026-09-10
+external_review: 1차 done → review/P4-agy-2026-09-10.md(병합 불가, BLOCKER 2·MAJOR 3·MINOR 2) · review/P4-codex-2026-09-10.md(병합 불가, BLOCKER 2·MAJOR 6·MINOR 2) — 전건 판정·반영 · 2차 codex → review/P4-codex-r2-2026-09-10.md(병합 불가, BLOCKER 3·MAJOR 3·MINOR 2) — 전건 판정·반영 · 2차 agy **미수행**(agy CLI 인증 확인 실패 — 계정 프로필 조회 오류, 코드와 무관. 3차에 포함) · 3차 codex → review/P4-codex-r3-2026-09-10.md(BLOCKER 0·MAJOR 2·MINOR 2) · 3차 agy → review/P4-agy-r3-2026-09-10.md(**병합 가능**, BLOCKER 0·MAJOR 0·MINOR 2) — 전건 판정·반영 → **done**
 branch: feat/mcp-p4-lex-index (base: feat/mcp-p3-release, PR #22 위에 스택) — 캐시 착수 시 별도 브랜치
 ```
 
@@ -40,9 +40,9 @@ branch: feat/mcp-p4-lex-index (base: feat/mcp-p3-release, PR #22 위에 스택) 
 
 ### C. 구현·테스트
 - [x] P4-06 `src/cache.ts` 구현, `buildGraph` 앞단에 투명 삽입 ✅ 2026-09-10 — `buildGraph` 는 `walkMd` → `snapshot` → 적중 시 **같은 Graph 객체** 반환, 미스 시 `assemble()`. `search.ts filesMode` 도 같은 텍스트 캐시를 쓴다. 호출부(`once.ts`·`read.ts`·`cli.ts`·`tools.ts`)는 **무변경** — 캐시는 전적으로 투명하다
-- [x] P4-07 단위 — 파일 수정/추가/삭제 후 다음 호출에서 반영, OneDrive 지연(mtime 만 변경·내용 동일) 케이스 ✅ 2026-09-10 — `test/unit/p4-cache.test.ts` 21건(최초 10 + 1차 리뷰 회귀 6 + 2차 리뷰 회귀 5): 적중 시 동일 객체 · 수정 반영 · 추가/삭제 반영(인링크 재생성·삭제 파일 캐시 제거) · mtime 만 변경(내용 동일)은 재구성하되 결과 동일 · **타임스탬프 해상도 안의 수정**(같은 크기·같은 mtime 으로 내용 교체)에서도 새 내용을 본다 · `--root` 전환 · on/off 동일
+- [x] P4-07 단위 — 파일 수정/추가/삭제 후 다음 호출에서 반영, OneDrive 지연(mtime 만 변경·내용 동일) 케이스 ✅ 2026-09-10 — `test/unit/p4-cache.test.ts` 25건(최초 10 + 1차 회귀 6 + 2차 회귀 5 + 3차 회귀 4): 적중 시 동일 객체 · 수정 반영 · 추가/삭제 반영(인링크 재생성·삭제 파일 캐시 제거) · mtime 만 변경(내용 동일)은 재구성하되 결과 동일 · **타임스탬프 해상도 안의 수정**(같은 크기·같은 mtime 으로 내용 교체)에서도 새 내용을 본다 · `--root` 전환 · on/off 동일
 - [x] P4-08 패리티 — `tests/parity.py` 를 캐시 on/off 양쪽으로 실행, 전건 동일. 연속 호출(같은 프로세스) 시나리오 추가 ✅ 2026-09-10 — 픽스처 **0/56 FAIL·DRIFT 0 (on·off 양쪽)** · 퍼징 200/200 (on·off) · 실볼트 **0/20 FAIL, digest `9bcb72a0a91edc08`**(on 2회·off 1회 전부 동일 — P1-67+ 의 캐시 이전 값과도 동일). 연속 호출은 CLI 로는 잴 수 없어(프로세스마다 캐시가 새로 생김) 인프로세스 테스트로 넣었다(P4-07 의 on/off 케이스가 같은 프로세스에서 3라운드 반복)
-- [x] P4-09 성능 — 1,000 페이지 합성 볼트에서 2회차 호출 <100ms, stat 스캔 비용 기록 `todo/baseline/P4-perf.txt` ✅ 2026-09-10 — `test/perf/cache-bench.mjs`(인프로세스 median of 10): **최신(2차 반영 후) — 1,000p off 162.8 → 정확히 2회차 24.5ms**(목표 <100ms 충족, -85%) · 309p off 42.5 → 2회차 **8.3ms**. warm 의 고정 비용은 walk+lstat 스캔(309p 5.2 · 1,000p 17.2ms). 이력: 최초 기록 24.0ms 는 'warm 반복 median' 이었고 1차 리뷰(codex M5)로 '정확히 2회차' 측정으로 바꿨다 — warm 시간의 70~75%가 스캔이다. `identical_output=true`
+- [x] P4-09 성능 — 1,000 페이지 합성 볼트에서 2회차 호출 <100ms, stat 스캔 비용 기록 `todo/baseline/P4-perf.txt` ✅ 2026-09-10 — `test/perf/cache-bench.mjs`(인프로세스 median of 10): **최신 — 1,000p 정확히 2회차 26.6ms**(3차 반영 후, off 164.3 / 2차 반영 후 24.5ms)(목표 <100ms 충족, -85%) · 309p off 42.5 → 2회차 **8.3ms**. warm 의 고정 비용은 walk+lstat 스캔(309p 5.2 · 1,000p 17.2ms). 이력: 최초 기록 24.0ms 는 'warm 반복 median' 이었고 1차 리뷰(codex M5)로 '정확히 2회차' 측정으로 바꿨다 — warm 시간의 70~75%가 스캔이다. `identical_output=true`
 - [x] P4-10 심볼릭 링크 스킵 규칙(P2-17) 이 캐시 경로에서도 유지되는지 테스트 ✅ 2026-09-10 — 설계상 순회는 **캐시하지 않는다**(캐시는 `walkMd` 뒤에 붙는다). 테스트 2건: 캐시 적중 상태에서 경계 밖 파일로 링크를 넣어도 노드가 늘지 않고 카나리 문자열이 그래프에 없다 · 실제 파일을 링크로 교체하면 목록이 바뀌어 재구성되고 외부 내용이 실리지 않는다. 링크 생성 권한이 없는 환경에서는 사유를 남기고 건너뛴다
 
 - [x] P4-12+ (P1 코덱스 리뷰 #5 이월) lexScore 중복 계산 제거 — `lexicalSeeds` 가 distinct 캐시를 반환해 `expand` 가 재사용, BM25 `scoreText`·cpLen 도 그래프 빌드 시 1회 계산. **출력 무변경**(패리티 전건 유지가 조건). Python 정본은 그대로 둔다 ✅ 2026-09-10 — `src/expand.ts` 에 `LexIndex`·`lexIndex(G, terms)` 신설, `lexicalSeeds`/`expand` 가 **선택 인자** `idx` 로 재사용(미전달 시 기존 동작 그대로, 부분 인덱스면 누락 노드만 그 자리에서 계산). `src/once.ts expandData` 가 호출당 1회 생성해 둘에 전달. **lex 단계 −49.8%**(309p 24.72→12.42ms · 1,000p 125.26→62.86ms · 2,000p 254.61→128.19ms). 출력 무변경 3중 검증: 픽스처 패리티 0/56 FAIL·골든 DRIFT 0 · 퍼징 200/200×2 seed · 실볼트 0/20 FAIL 3회 반복 **digest `9bcb72a0a91edc08` = P1-67+ 가 기록한 변경 이전 값과 동일**. `npm run check` 40파일 551건 통과, `npm pack` 19파일 무변동. 근거 `todo/baseline/P4-perf.txt`
@@ -59,6 +59,7 @@ branch: feat/mcp-p4-lex-index (base: feat/mcp-p3-release, PR #22 위에 스택) 
 - [x] P4-21+ (외부리뷰 1차 반영) CI 에 캐시 off 패리티 + 퍼징 단계 추가 ✅ 2026-09-10 — `.github/workflows/ci.yml`: `LLMWIKI_CACHE=0 python tests/parity.py`·`python tests/parity_fuzz.py`. DoD 를 CI 가 지키게 됐다(agy M1·codex M3·M6)
 - [x] P4-22+ (외부리뷰 1차 반영) 측정 하네스 정정 — `stage-bench` 는 캐시 off 강제, `cache-bench` 는 **정확히 2회차** 측정·표준 median ✅ 2026-09-10 — agy M3·codex M5. 재측정: 309p 48.4→9.2ms · 1,000p 195.4→26.4ms · 2,000p 379.5→48.9ms
 - [x] P4-23+ (외부리뷰 2차 반영) 불안정 스냅샷의 적중·재사용 금지, 텍스트 예산 초과 시 그래프 미저장, 파생 예산을 전 root 합으로, root LRU, Windows ctime 서술 정정 ✅ 2026-09-10 — codex r2 B1·B3·M1·M3·m1·m2. 회귀 5건 추가(p4-cache 21건). 재검증: 41파일 572건 · 픽스처 0/56(on·off) · 퍼징 200/200 · 실볼트 0/20(on·off) digest `9bcb72a0a91edc08` 불변 · 1,000p 정확히 2회차 24.5ms
+- [x] P4-24+ (외부리뷰 3차 반영) 누적 상한 즉시 판정, 전 root 텍스트 합 상한(LRU 축출), 스냅샷 lstat 동시성 풀, 축출 시 참조 해제 ✅ 2026-09-10 — codex r3 M1·M2·m3·m4 / agy r3 m1·m2. 회귀 4건 추가(p4-cache 25건). 재검증: 41파일 576건 · 픽스처 0/56(on·off) · 퍼징 200/200 · 실볼트 0/20(on·off) digest `9bcb72a0a91edc08` 불변 · 1,000p 정확히 2회차 26.6ms · pack 20파일(dist/cache.js 추가분)
 - [ ] P4-11 npm `0.2.0` publish, README 성능 절 갱신, `CLAUDE.md` 변경 이력 행 — **선행: P3-08 의 `0.1.0` publish**(승인 대기). 0.1.0 이 나가기 전에는 0.2.0 을 논하지 않는다 ⏸ 2026-09-10 — **문서 몫은 선반영**: README(Env 줄·`LLMWIKI_CACHE` 설명·한계 2줄 교체)·DESIGN §6·`CLAUDE.md` 이력 행 완료. 남은 것은 publish 뿐이며 P3-08 승인에 막혀 있다
 - [x] P4-17+ (P4-12+ 몫) `CLAUDE.md` 변경 이력 행 추가 — 패키지 배포 없이 저장소에만 반영되는 변경이므로 P4-11 과 분리해 지금 기록 ✅ 2026-09-10
 
@@ -68,9 +69,9 @@ branch: feat/mcp-p4-lex-index (base: feat/mcp-p3-release, PR #22 위에 스택) 
 - (2026-09-10 실제 산출) **이월분**: `src/expand.ts`(`lexIndex`)·`src/once.ts`, `test/unit/p4-12-lex-index.test.ts`, `test/perf/stage-bench.mjs`, `todo/baseline/P4-trigger.txt`·`P4-perf.txt`
 
 ## 완료 기준 (DoD)
-- [x] 캐시 on/off 패리티 전건 동일 ✅ 2026-09-10 — 픽스처 56 on/off · 퍼징 200 on/off · 실볼트 20 on/off, digest 전부 `9bcb72a0a91edc08`. 단위 41파일 572건 통과(2차 반영 후)
-- [x] 성능 목표 달성 기록 ✅ 2026-09-10 — 1,000p 정확히 2회차 **24.5ms**(목표 <100ms, 2차 반영 후 재측정), stat 스캔 비용까지 `todo/baseline/P4-perf.txt` 에 기록
-- [ ] 외부리뷰 완료 — 1차 2건(BLOCKER 4)·2차 codex 1건(BLOCKER 3) 전건 판정·반영. **3차 재리뷰 대기** — 잔여 BLOCKER 0 을 리뷰어가 확인하기 전에는 `[x]` 로 바꾸지 않는다
+- [x] 캐시 on/off 패리티 전건 동일 ✅ 2026-09-10 — 픽스처 56 on/off · 퍼징 200 on/off · 실볼트 20 on/off, digest 전부 `9bcb72a0a91edc08`. 단위 41파일 576건 통과(3차 반영 후)
+- [x] 성능 목표 달성 기록 ✅ 2026-09-10 — 1,000p 정확히 2회차 **26.6ms**(목표 <100ms, 3차 반영 후 재측정), stat 스캔 비용까지 `todo/baseline/P4-perf.txt` 에 기록
+- [x] 외부리뷰 완료 ✅ 2026-09-10 — 3라운드: 1차 codex·agy(BLOCKER 4) → 2차 codex(BLOCKER 3, agy 는 CLI 인증 오류로 미수행) → **3차 codex·agy 모두 잔여 BLOCKER 0**(agy '병합 가능'). 3차 MAJOR 2·MINOR 4 는 00-README 5항대로 같은 단계 안에서 반영·재검증
 - [x] (이월분) P4-12+ 출력 무변경 완료 ✅ 2026-09-10 — 픽스처 패리티·퍼징 2 seed·실볼트 digest 동일·단위 551건, 세 볼트에서 `identical_output=true`
 
 ## 외부리뷰 (단계 종료 시 필수)
@@ -110,3 +111,11 @@ branch: feat/mcp-p4-lex-index (base: feat/mcp-p3-release, PR #22 위에 스택) 
 | p4-r2M3 | MAJOR | 체크리스트 서술이 현재 구현·측정과 불일치(P4-02/03/04/07/09) | **수용** — 5개 항목 서술을 최신 구현(lstat·FileId·불안정 스냅샷·LRU)과 최신 측정(정확히 2회차 24.5ms)으로 교체, 옛 값은 '이력'으로 남김 | 이 문서 P4-02~P4-09·DoD |
 | p4-r2m1 | MINOR | root 축출이 LRU 가 아니라 FIFO | **수용** — 접근 시 Map 순서 갱신. LRU 테스트 추가 | `src/cache.ts` rootCache, `p4-cache.test.ts` "[codex r2 m1]" |
 | p4-r2m2 | MINOR | 필수 회귀 누락(기존 캐시+창 진입·FUTURE_SKEW 경계·stat 실패 복구·상한 혼합·Windows ctime·상위 디렉터리 경쟁) | **수용(부분)** — 창 진입(B1)·FUTURE_SKEW 경계·텍스트/파생 상한 3건 추가. stat 실패 복구는 추가·삭제 테스트가 같은 경로를 탄다. Windows ctime·상위 디렉터리 경쟁은 이 환경(darwin)에서 결정론적 재현이 불가 — 전자는 B3 정정으로 전제가 사라졌고 후자는 B2 근거로 기각 | `p4-cache.test.ts` "외부리뷰 2차 반영 회귀" |
+| 3차 codex 2026-09-10 (`review/P4-codex-r3-2026-09-10.md`) — **BLOCKER 0**, r2B2·r2B3 기각을 "타당" 으로 확인 | | | | |
+| p4-r3M1 | MAJOR | `readTexts` 가 전부 읽은 뒤 누적 상한을 검사 — 상한을 크게 넘는 볼트도 한때 전량 메모리 적재 | **수용**(소스 확인: `readAll` 은 읽을 때마다, `readTexts` 는 사후 검사였다 — agy 3차가 "완전히 동일" 이라 본 것은 틀림) — 적중분 포함 **읽는 즉시** 계수, 초과 시 다른 워커도 새 파일을 읽지 않음. 적중 텍스트도 `size ≤ MAX_FILE_BYTES` 재확인 | `src/cache.ts` readTexts, `p4-cache.test.ts` "[codex r3 M1]" |
+| p4-r3M2 | MAJOR | 캐시 메모리 상한이 전역 하드캡이 아님(root 당 256MiB × 4) | **수용** — 전 root 텍스트 합 512MiB(`TOTAL_TEXT_BUDGET_BYTES`), 넘으면 LRU 로 다른 root 를 비우고 혼자 넘으면 미저장. README 에 "payload 기준 논리 상한, RSS 아님" 명시 | `src/cache.ts`, README, `p4-cache.test.ts` "[codex r3 M2]" |
+| p4-r3m3 | MINOR | rename(slug 변경)·stat 실패 후 복구 회귀 누락 | **수용** — 2건 추가 | `p4-cache.test.ts` "[codex r3 m3]" ×2 |
+| p4-r3m4 | MINOR | 리뷰 환경에서 vitest 가 임시 `ssr` 디렉터리 EPERM 으로 0건 실행 | **수용(절차)** — 재현 절차에 "쓰기 가능한 임시 디렉터리 필요(샌드박스 read-only 에서는 vitest 불가)" 명시. 코드 결함 아님(리뷰어 본인 판단과 동일) | `baseline/P4-perf.txt` |
+| 3차 agy 2026-09-10 (`review/P4-agy-r3-2026-09-10.md`) — **병합 가능**, BLOCKER 0·MAJOR 0 | | | | |
+| p4-r3am1 | MINOR | `snapshot()` 이 파일 수만큼 lstat 을 한꺼번에 던짐 | **수용** — 동시성 64 풀(`SNAPSHOT_CONCURRENCY`) | `src/cache.ts` snapshot |
+| p4-r3am2 | MINOR | 축출된 root 의 그래프 참조가 GC 전까지 남음 | **수용** — `evict()` 가 graph·texts 참조를 명시적으로 끊는다 | `src/cache.ts` evict |

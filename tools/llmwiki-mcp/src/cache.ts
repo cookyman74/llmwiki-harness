@@ -32,7 +32,7 @@
 import fs from "node:fs/promises";
 import path from "node:path";
 import type { Graph, Node } from "./graph.js";
-import { MAX_TOTAL_BYTES, VaultLimitError, read, type MdFile } from "./vault.js";
+import { MAX_FILE_BYTES, MAX_TOTAL_BYTES, VaultLimitError, read, type MdFile } from "./vault.js";
 
 /** 파일시스템 타임스탬프 해상도 안(2s)에 수정된 파일이 있으면 스냅샷을 신뢰하지 않는다. */
 export const FRESH_WINDOW_MS = 2000;
@@ -46,14 +46,23 @@ export const DERIVED_BUDGET_BYTES = 128 * 1024 * 1024;
 export const TEXT_BUDGET_BYTES = 256 * 1024 * 1024;
 /** 동시에 유지하는 볼트(root) 수 — LRU 로 축출. */
 export const MAX_ROOTS = 4;
+/** 전 root 텍스트 보유량 합의 상한 — 넘으면 가장 오래 안 쓴 다른 root 부터 비운다(codex 3차 MAJOR-2).
+ *  모든 상한은 **문자열 payload 기준의 논리 상한**이지 프로세스 RSS 상한이 아니다(객체 오버헤드 제외). */
+export const TOTAL_TEXT_BUDGET_BYTES = 512 * 1024 * 1024;
+/** 스냅샷의 lstat 동시성 — 대형 볼트에서 libuv 스레드풀·메모리 버스트를 막는다(agy 3차 MINOR-1). */
+export const SNAPSHOT_CONCURRENCY = 64;
 
 let textBudget = TEXT_BUDGET_BYTES;
+let totalTextBudget = TOTAL_TEXT_BUDGET_BYTES;
 let derivedBudget = DERIVED_BUDGET_BYTES;
+let maxTotal = MAX_TOTAL_BYTES;
 
 /** 테스트 전용: 예산을 작게 바꿔 상한 경로를 재현한다. `null` 이면 기본값 복원. */
-export function setCacheBudgetsForTest(b: { text?: number; derived?: number } | null): void {
+export function setCacheBudgetsForTest(b: { text?: number; totalText?: number; derived?: number; maxTotal?: number } | null): void {
   textBudget = b?.text ?? TEXT_BUDGET_BYTES;
+  totalTextBudget = b?.totalText ?? TOTAL_TEXT_BUDGET_BYTES;
   derivedBudget = b?.derived ?? DERIVED_BUDGET_BYTES;
+  maxTotal = b?.maxTotal ?? MAX_TOTAL_BYTES;
 }
 
 export function cacheEnabled(): boolean {
@@ -103,25 +112,34 @@ export async function snapshot(base: string, files: MdFile[]): Promise<Snapshot>
     storable = false;
   }
   const parts: string[] = [baseKey];
-  const got = await Promise.all(
-    files.map(async (f): Promise<FileId | null> => {
-      try {
-        // lstat: 링크를 따라가지 않는다 — 파일이 링크로 바뀌면 mode·ino 가 달라져 미스가 된다.
-        const st = await fs.lstat(f.path, { bigint: true });
-        if (!st.isFile()) return null;
-        return {
-          dev: st.dev.toString(),
-          ino: st.ino.toString(),
-          mode: Number(st.mode),
-          size: Number(st.size),
-          mtimeNs: st.mtimeNs.toString(),
-          ctimeNs: st.ctimeNs.toString(), // 상태 변경 시각 — userland 가 되돌릴 수 없다
-        };
-      } catch {
-        return null;
-      }
-    }),
-  );
+  const statOne = async (f: MdFile): Promise<FileId | null> => {
+    try {
+      // lstat: 링크를 따라가지 않는다 — 파일이 링크로 바뀌면 mode·ino 가 달라져 미스가 된다.
+      const st = await fs.lstat(f.path, { bigint: true });
+      if (!st.isFile()) return null;
+      return {
+        dev: st.dev.toString(),
+        ino: st.ino.toString(),
+        mode: Number(st.mode),
+        size: Number(st.size),
+        mtimeNs: st.mtimeNs.toString(),
+        ctimeNs: st.ctimeNs.toString(), // 상태 변경 시각 — userland 가 되돌릴 수 없다
+      };
+    } catch {
+      return null;
+    }
+  };
+  // 동시성 풀(순서는 인덱스로 보존) — 파일 수만큼 lstat 을 한꺼번에 던지지 않는다.
+  const got = new Array<FileId | null>(files.length);
+  let next = 0;
+  async function worker(): Promise<void> {
+    for (;;) {
+      const i = next++;
+      if (i >= files.length) return;
+      got[i] = await statOne(files[i]);
+    }
+  }
+  await Promise.all(Array.from({ length: Math.min(SNAPSHOT_CONCURRENCY, Math.max(1, files.length)) }, worker));
   files.forEach((f, i) => {
     const st = got[i];
     if (!st) {
@@ -167,8 +185,27 @@ function rootCache(base: string): RootCache {
   }
   c = { base: abs, key: null, graph: null, gen: 0, texts: new Map(), textBytes: 0, derivedBytes: 0 };
   roots.set(abs, c);
-  while (roots.size > MAX_ROOTS) roots.delete(roots.keys().next().value as string);
+  while (roots.size > MAX_ROOTS) evict(roots.keys().next().value as string);
   return c;
+}
+
+/** root 를 비우고 제거한다 — 그래프·텍스트 참조를 명시적으로 끊어 GC 가 바로 회수하게(agy 3차 MINOR-2). */
+function evict(key: string): void {
+  const c = roots.get(key);
+  if (c) {
+    c.graph = null;
+    c.key = null;
+    c.texts = new Map();
+    c.textBytes = 0;
+    c.derivedBytes = 0;
+  }
+  roots.delete(key);
+}
+
+function totalText(): number {
+  let n = 0;
+  for (const r of roots.values()) n += r.textBytes;
+  return n;
 }
 
 function totalDerived(): number {
@@ -225,31 +262,44 @@ export async function readTexts(base: string, files: MdFile[], snap: Snapshot, c
   const reuse = c !== null && snap.storable; // 불안정 스냅샷이면 전량 재독(codex 2차 BLOCKER-1)
   const texts = new Array<string>(files.length);
   const missing: number[] = [];
+
+  // 누적 예산은 캐시 적중분까지 **읽는 즉시** 센다 — 전부 읽은 뒤 검사하면 상한을 크게 넘는 볼트도
+  // 한때 전량 메모리에 올라온다(codex 3차 MAJOR-1). vault.readAll 과 같은 판정·같은 시점.
+  let total = 0;
+  let failed = false;
+  const account = (t: string): void => {
+    total += Buffer.byteLength(t, "utf8");
+    if (total > maxTotal) {
+      failed = true;
+      throw new VaultLimitError(`vault text exceeds ${maxTotal} bytes in total`);
+    }
+  };
+
   files.forEach((f, i) => {
     const st = snap.stats.get(f.path);
     const hit = reuse && st ? c.texts.get(f.path) : undefined;
-    if (hit && st && sameFile(hit.id, st)) texts[i] = hit.text;
-    else missing.push(i);
+    // size 는 신원에 포함되므로 적중 텍스트는 read() 의 MAX_FILE_BYTES 검사를 같은 크기로 통과한 것이다.
+    // 그래도 상한 판정을 캐시에 기대지 않도록 크기를 한 번 더 확인한다.
+    if (hit && st && st.size <= MAX_FILE_BYTES && sameFile(hit.id, st)) {
+      account(hit.text);
+      texts[i] = hit.text;
+    } else missing.push(i);
   });
 
   let next = 0;
   async function worker(): Promise<void> {
     for (;;) {
+      if (failed) return; // 한 워커가 상한에 걸리면 나머지는 새 파일을 읽지 않는다
       const k = next++;
       if (k >= missing.length) return;
       const i = missing[k];
-      texts[i] = await read(files[i].path); // O_NOFOLLOW·크기 상한은 여기서 그대로 적용된다
+      const t = await read(files[i].path); // O_NOFOLLOW·파일별 크기 상한은 여기서 그대로 적용된다
+      account(t);
+      texts[i] = t;
     }
   }
   const n = Math.min(concurrency, Math.max(1, missing.length));
   await Promise.all(Array.from({ length: n }, worker));
-
-  // 누적 예산은 캐시 적중분 포함(vault.readAll 과 같은 판정).
-  let total = 0;
-  for (const t of texts) {
-    total += Buffer.byteLength(t, "utf8");
-    if (total > MAX_TOTAL_BYTES) throw new VaultLimitError(`vault text exceeds ${MAX_TOTAL_BYTES} bytes in total`);
-  }
 
   if (total > textBudget) snap.storable = false; // 그래프도 저장하지 않게(그래프가 본문을 쥐고 있다)
   if (c && snap.storable) {
@@ -260,7 +310,14 @@ export async function readTexts(base: string, files: MdFile[], snap: Snapshot, c
     });
     c.texts = fresh; // 삭제된 파일은 이 대입으로 사라진다(P4-04)
     c.textBytes = total;
-  } else if (c) {
+    // 전 root 합이 상한을 넘으면 가장 오래 안 쓴 **다른** root 부터 비운다(LRU 순서 = Map 순서).
+    for (const key of [...roots.keys()]) {
+      if (totalText() <= totalTextBudget) break;
+      if (key !== c.base) evict(key);
+    }
+    if (totalText() > totalTextBudget) snap.storable = false; // 혼자서도 넘으면 이 스냅샷은 저장하지 않는다
+  }
+  if (c && !snap.storable) {
     c.texts = new Map();
     c.textBytes = 0;
     c.key = null;
