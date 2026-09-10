@@ -5,6 +5,10 @@
  *
  * `bench.py` 는 프로세스 wall 을 재기 때문에 node 부팅(~145ms)과 파일 IO 가 신호를 덮는다.
  * 여기서는 그래프를 한 번 만든 뒤 단계(buildGraph · lex · bm25)만 반복 측정한다.
+ *
+ * **캐시는 끈 상태로 잰다**(`LLMWIKI_CACHE=0`). P4 캐시가 켜져 있으면 buildGraph 는 스냅샷 조회만 하고
+ * lex·bm25 는 파생 메모를 읽어 단계 비용이 사라진다 — 그건 캐시 효과지 단계 비용이 아니다(agy MAJOR-3).
+ * 캐시가 켜졌을 때의 수치는 `cache-bench.mjs` 가 따로 잰다.
  *   - lex.legacy : Python 정본 구조(= lexicalSeeds 와 expand 가 각자 전 노드 lex_score)
  *   - lex.shared : P4-12+ 공유 인덱스(호출당 1회)
  * 두 경로의 결과가 동일한지(identical)도 같이 확인한다.
@@ -12,6 +16,8 @@
  * 출력에는 slug·본문을 싣지 않는다(숫자만) — baseline/ 에 그대로 붙여도 볼트 내용이 새지 않는다.
  */
 import path from "node:path";
+process.env.LLMWIKI_CACHE = "0"; // 단계 비용 측정 — 캐시·파생 메모를 타지 않는다
+// (ESM 은 import 를 먼저 평가하지만 cacheEnabled() 가 호출 시점에 env 를 읽으므로 순서는 문제되지 않는다)
 import { bm25Rank } from "../../dist/bm25.js";
 import { expand, lexIndex, lexicalSeeds } from "../../dist/expand.js";
 import { buildGraph } from "../../dist/graph.js";
@@ -72,7 +78,7 @@ const legacyOut = JSON.stringify(expand(G, tl, lexicalSeeds(G, tl, 6), 15));
 const identical = legacyOut === JSON.stringify(rows);
 const f = (x) => x.toFixed(2).padStart(8);
 
-console.log(`pages=${G.nodes.size} terms=${tl.length} rows=${rows.length} runs=${RUNS} (median ms)`);
+console.log(`pages=${G.nodes.size} terms=${tl.length} rows=${rows.length} runs=${RUNS} (median ms, LLMWIKI_CACHE=0)`);
 console.log(`  buildGraph        ${f(tBuild)}`);
 console.log(`  lex.legacy(2패스) ${f(tLegacy)}`);
 console.log(`  lex.shared(1패스) ${f(tShared)}   delta=${(tLegacy - tShared).toFixed(2)} (${((100 * (tLegacy - tShared)) / tLegacy).toFixed(1)}%)`);

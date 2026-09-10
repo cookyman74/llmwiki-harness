@@ -1,12 +1,12 @@
 # P4 — (후속) 프로세스 내 mtime 캐시 v1.1
 
 ```
-status: review             # not-started | in-progress | review | done — 캐시 구현·검증 완료(P4-02~P4-10·P4-13+), 외부리뷰 진행 중.
+status: review             # not-started | in-progress | review | done — 캐시 구현·검증 완료(P4-02~P4-10·P4-13+), **외부리뷰 1차 반영 완료·2차 대기**.
                            # **P4-11(npm 0.2.0 publish)만 P3-08 의 0.1.0 publish 승인에 막혀 있다.**
                            # 착수 판정(P4-01)은 트리거 미관측이었으나 사용자 지시로 캐시를 열었다 — 그 경위를 P4-01 에 남긴다.
 started: 2026-09-10
 completed:
-external_review:           # pending | done → review/P4-agy-YYYY-MM-DD.md — 캐시 착수 시 수행. P4-12+ 는 P3 브랜치 리뷰 대상에 포함
+external_review: 1차 done → review/P4-agy-2026-09-10.md(병합 불가, BLOCKER 2·MAJOR 3·MINOR 2) · review/P4-codex-2026-09-10.md(병합 불가, BLOCKER 2·MAJOR 6·MINOR 2) — 전건 판정·반영 · 2차 pending
 branch: feat/mcp-p4-lex-index (base: feat/mcp-p3-release, PR #22 위에 스택) — 캐시 착수 시 별도 브랜치
 ```
 
@@ -54,6 +54,10 @@ branch: feat/mcp-p4-lex-index (base: feat/mcp-p3-release, PR #22 위에 스택) 
 - [x] P4-18+ 착수 트리거 감시 — 위키 lint·주간리뷰 때 `node tools/llmwiki-mcp/dist/cli.js --selftest --root <VAULT>` 의 `pages`·`buildGraph_ms` 를 확인해 ①② 근접 여부만 본다(현재 309p·28ms). 근접하면 P4-01 을 갱신하고 캐시를 연다 ✅ 2026-09-10 — **캐시를 열었으므로 원래 목적(착수 시점 판단)은 소멸**. 감시 대상을 바꿔 남긴다: warm 호출은 walk+stat 스캔이 지배하므로(1,000p 17.4ms = warm 의 73%), 다음 병목은 **스캔 비용**이다. 페이지 수가 3,000 을 넘거나 warm 호출이 100ms 를 넘으면 스캔 자체를 줄이는 방법(디렉터리 mtime 프루닝·watch API)을 새 항목으로 연다
 
 ### D. 배포
+- [x] P4-19+ (외부리뷰 1차 반영) 캐시 키 강화 — `stat`→`lstat`, `(dev, ino, mode, size, mtimeNs, ctimeNs)` + 볼트 realpath, `isFile()` 아니면 저장 금지 ✅ 2026-09-10 — codex B1·B2 / agy M2 를 문서화가 아니라 **설계 변경**으로 막았다. `cp -p` 재현 테스트 통과
+- [x] P4-20+ (외부리뷰 1차 반영) 예산·수명 수정 — 파생 예산을 그래프 조립 시 리셋, 저장 전 예산 확인, `has()` 로 undefined 인정, 텍스트 캐시 256MiB 상한, root 캐시 `Map`(최대 4) ✅ 2026-09-10 — agy B2·MINOR / codex M2·m1
+- [x] P4-21+ (외부리뷰 1차 반영) CI 에 캐시 off 패리티 + 퍼징 단계 추가 ✅ 2026-09-10 — `.github/workflows/ci.yml`: `LLMWIKI_CACHE=0 python tests/parity.py`·`python tests/parity_fuzz.py`. DoD 를 CI 가 지키게 됐다(agy M1·codex M3·M6)
+- [x] P4-22+ (외부리뷰 1차 반영) 측정 하네스 정정 — `stage-bench` 는 캐시 off 강제, `cache-bench` 는 **정확히 2회차** 측정·표준 median ✅ 2026-09-10 — agy M3·codex M5. 재측정: 309p 48.4→9.2ms · 1,000p 195.4→26.4ms · 2,000p 379.5→48.9ms
 - [ ] P4-11 npm `0.2.0` publish, README 성능 절 갱신, `CLAUDE.md` 변경 이력 행 — **선행: P3-08 의 `0.1.0` publish**(승인 대기). 0.1.0 이 나가기 전에는 0.2.0 을 논하지 않는다 ⏸ 2026-09-10 — **문서 몫은 선반영**: README(Env 줄·`LLMWIKI_CACHE` 설명·한계 2줄 교체)·DESIGN §6·`CLAUDE.md` 이력 행 완료. 남은 것은 publish 뿐이며 P3-08 승인에 막혀 있다
 - [x] P4-17+ (P4-12+ 몫) `CLAUDE.md` 변경 이력 행 추가 — 패키지 배포 없이 저장소에만 반영되는 변경이므로 P4-11 과 분리해 지금 기록 ✅ 2026-09-10
 
@@ -65,7 +69,7 @@ branch: feat/mcp-p4-lex-index (base: feat/mcp-p3-release, PR #22 위에 스택) 
 ## 완료 기준 (DoD)
 - [x] 캐시 on/off 패리티 전건 동일 ✅ 2026-09-10 — 픽스처 56 on/off · 퍼징 200 on/off · 실볼트 20 on/off, digest 전부 `9bcb72a0a91edc08`. 단위 41파일 561건 통과
 - [x] 성능 목표 달성 기록 ✅ 2026-09-10 — 1,000p 2회차 **24.0ms**(목표 <100ms), stat 스캔 비용까지 `todo/baseline/P4-perf.txt` 에 기록
-- [ ] 외부리뷰 완료 — 진행 중(2026-09-10, codex·agy)
+- [ ] 외부리뷰 완료 — 1차 2건 수행·전건 반영(BLOCKER 4 → 0). **2차 재리뷰 대기** — 두 리뷰어 모두 "재리뷰 후 병합" 을 요구했다
 - [x] (이월분) P4-12+ 출력 무변경 완료 ✅ 2026-09-10 — 픽스처 패리티·퍼징 2 seed·실볼트 digest 동일·단위 551건, 세 볼트에서 `identical_output=true`
 
 ## 외부리뷰 (단계 종료 시 필수)
@@ -77,4 +81,22 @@ branch: feat/mcp-p4-lex-index (base: feat/mcp-p3-release, PR #22 위에 스택) 
 ### 외부리뷰 반영
 | # | 심각도 | 지적 요지 | 판정(수용/기각/상신) | 반영 위치 |
 |---|---|---|---|---|
-| | | | | |
+| 1차 agy 2026-09-10 (`review/P4-agy-2026-09-10.md`, BLOCKER 2·MAJOR 3·MINOR 2) — **병합 불가** | | | | |
+| p4-aB1 | BLOCKER | 미래 mtime 파일이 있으면 `now - mtimeMs` 가 음수 → 항상 "방금 수정" 판정 → 그 볼트 캐시가 영구 무력화되고 매 호출 캐시를 비움 | **수용**(실증) — `FUTURE_SKEW_MS`(5s) 도입: 창은 `[-5s, 2s)`. 그보다 더 미래인 mtime 은 시계 차이로 본다. 단순히 `ageMs >= 0` 로 막으면 `Date.now()` 의 ms 절삭 때문에 **갓 쓴 파일**을 놓치는 것을 자체 테스트가 검출 | `src/cache.ts` FUTURE_SKEW_MS, `p4-cache.test.ts` "[agy B1]" |
+| p4-aB2 | BLOCKER | `derivedBytes` 가 전역이라 같은 볼트에서 수정이 누적되면 128MiB 를 넘어 파생 캐시가 영구 정지 | **수용** — `resetDerivedBudget()` 를 그래프 조립 시점(`buildGraph`)에 호출. 12회 반복 수정 테스트로 고정 | `src/cache.ts`·`src/graph.ts`, `p4-cache.test.ts` "[agy B2]" |
+| p4-aM1 | MAJOR | CI 에 캐시 off 패리티·퍼징 단계가 없어 DoD 를 CI 가 지키지 못함 | **수용** — `.github/workflows/ci.yml` 에 `LLMWIKI_CACHE=0` 패리티 + `parity_fuzz.py` 단계 추가 | ci.yml |
+| p4-aM2 | MAJOR | 2s 창 밖에서 mtime·size 를 보존한 채 내용이 바뀌면 낡은 적중(메타데이터 캐시의 한계) | **수용(설계 변경)** — 문서화로 끝내지 않고 키에 `ctime`·`ino`·`dev`·`mode` 를 넣어 실제로 막았다. `cp -p` 시나리오를 테스트로 재현 | `src/cache.ts` snapshot, `p4-cache.test.ts` "[codex B1·agy M2]" |
+| p4-aM3 | MAJOR | `stage-bench.mjs` 가 캐시·파생 메모를 타서 단계 비용을 왜곡 | **수용** — 벤치가 `LLMWIKI_CACHE=0` 을 강제하고 출력에 표기. 재측정치로 근거 파일 갱신 | `test/perf/stage-bench.mjs`, `baseline/P4-perf.txt` |
+| p4-am1 | MINOR | 단일 슬롯 root 캐시 — 두 볼트 교차 조회 시 매번 폐기 | **수용** — `Map<string, RootCache>`(`MAX_ROOTS` 4)로 전환, 교차 조회 적중 테스트 추가 | `src/cache.ts`, `p4-cache.test.ts` "[리뷰 MINOR]" |
+| p4-am2 | MINOR | 누락 테스트(미래 mtime·장기 수정·search↔graph 상호작용·상한 혼합) | **수용** — 6건 추가(위 항목들 + search→graph 일관성) | `p4-cache.test.ts` "외부리뷰 반영 회귀" |
+| 1차 codex 2026-09-10 (`review/P4-codex-2026-09-10.md`, BLOCKER 2·MAJOR 6·MINOR 2) — **병합 불가** | | | | |
+| p4-cB1 | BLOCKER | `(path, mtime, size)` 만으로는 낡은 본문을 판별할 수 없음(mtime 복원·시계 보정·볼트 realpath 변경) | **수용** — 키를 `realpath(vault)` + `(경로, dev, ino, mode, size, mtimeNs, ctimeNs)` 로 확장. `ctime` 은 userland 가 되돌릴 수 없어 복원 시나리오를 잡는다 | `src/cache.ts` snapshot |
+| p4-cB2 | BLOCKER | 캐시 적중 시 `read()` 를 건너뛰어 `O_NOFOLLOW`·realpath 검증이 빠짐. `stat` 은 링크를 따라감 | **수용** — `lstat` 으로 교체(링크 미추적) + `isFile()` 아니면 저장 금지 + `ino/mode` 키 포함 → 파일이 링크·다른 파일로 바뀌면 반드시 미스가 되어 `read()`(O_NOFOLLOW) 로 돌아간다. 순회·경계 검사는 애초에 호출마다 수행 | `src/cache.ts` snapshot, `p4-cache.test.ts` P4-10 |
+| p4-cM1 | MAJOR | 권한 변경(chmod)이 키에 없어 접근성과 결과가 어긋남 | **수용** — `mode`·`ctimeNs` 가 키에 포함되므로 chmod 는 미스. 테스트 추가 | `p4-cache.test.ts` "[codex M3]" |
+| p4-cM2 | MAJOR | 파생 예산이 실제 메모리 상한이 아님(문자열만 계수·마지막 하나가 초과·`undefined` 재계산) | **수용** — 값 저장 **전** 예산 확인, 숫자도 8B 로 계수, `has()` 로 `undefined` 캐시 인정, 텍스트 캐시에 `TEXT_BUDGET_BYTES` 256MiB 추가 | `src/cache.ts` derived·readTexts |
+| p4-cM3 | MAJOR | 정본 구조 분기의 CI 증명 부족(캐시 on/off·퍼징 미실행) | **수용** — CI 에 두 단계 추가(p4-aM1 과 같은 조치) | ci.yml |
+| p4-cM4 | MAJOR | 필수 무효화 케이스 누락(mtime 복원·미래 mtime·chmod·교차 root·stat 실패 복귀 등) | **수용(부분)** — mtime 복원·미래 mtime·chmod·교차 root·search↔graph 6건 추가. **walk 와 snapshot 사이의 링크 교체(TOCTOU)는 결정론적 재현이 어려워 미추가** — 대신 `lstat`+`ino/mode` 키로 그 창에서도 미스가 되게 만들었고, 상위 디렉터리 교체 경쟁은 P2-42+ 가 이미 "로컬 단일 사용자 범위에서 수용" 으로 판정한 잔여 위험이다(DESIGN §5) | `p4-cache.test.ts`, DESIGN §5·§6 |
+| p4-cM5 | MAJOR | 성능 주장이 측정 범위보다 넓음(rerank 경로만·warm 정의·median 계산) | **수용** — `cache-bench.mjs` 에 **정확히 2회차** 측정 추가, 표준 median(짝수 평균)으로 수정, 라벨을 "warm(반복 median)" 으로 정정 | `test/perf/cache-bench.mjs`, `baseline/P4-perf.txt` |
+| p4-cM6 | MAJOR | 리뷰 환경에서 `npm test`·parity 를 재현하지 못해 체크리스트 수치를 독립 검증할 수 없었음(EPERM·dist 없음) | **수용(절차)** — 캐시 on/off 패리티·퍼징을 CI 필수 단계로 승격해 3-OS 로그가 근거가 되게 했다. 로컬 재현 절차(`npm ci && npm run check` 후 `python3 tests/parity.py`)를 근거 파일에 명시 | ci.yml, `baseline/P4-perf.txt` |
+| p4-cm1 | MINOR | root 캐시 1개만 유지 | 수용 — p4-am1 과 동일 조치 | `src/cache.ts` |
+| p4-cm2 | MINOR | 외부리뷰 미완료 상태에서 `status: done` 으로 바꾸지 말 것 | **수용** — `status: review` 유지, DoD 외부리뷰 항목도 `[ ]` 로 남긴다 | 이 문서 상단 |

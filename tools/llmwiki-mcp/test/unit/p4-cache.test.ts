@@ -7,7 +7,7 @@
  *   ④ 타임스탬프 해상도 안의 수정(같은 크기·같은 mtime)  ⑤ `--root` 전환  ⑥ `LLMWIKI_CACHE=0`
  *   ⑦ 심볼릭 링크 스킵·경계(P2-17)가 캐시 경로에서도 유지되는가  ⑧ 캐시 on/off 출력 동일
  */
-import { mkdtemp, mkdir, rm, stat, symlink, utimes, writeFile } from "node:fs/promises";
+import { chmod, mkdtemp, mkdir, rm, stat, symlink, utimes, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
@@ -194,5 +194,91 @@ describe("P4-10 보안 규칙이 캐시 경로에서도 유지된다", () => {
     const g2 = await buildGraph(wiki());
     expect([...g2.nodes.keys()]).toEqual(["a"]);
     expect(JSON.stringify([...g2.nodes.values()])).not.toContain("CANARY-2");
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// 외부리뷰(2026-09-10 codex·agy) 반영 회귀 — 지적된 구멍을 그대로 재현해 막는다.
+// ─────────────────────────────────────────────────────────────────────────────
+describe("외부리뷰 반영 회귀", () => {
+  it("[codex B1·agy M2] mtime·size 를 복원해도 내용이 바뀌면 적중하지 않는다(ctime 방어)", async () => {
+    const p = path.join(wiki(), "L3/a.md");
+    const before = await stat(p);
+    const g1 = await buildGraph(wiki());
+    expect(g1.nodes.get("a")?.text).toContain("alpha 본문");
+
+    // `cp -p`·`rsync --times`·`touch -t` 가 하는 일: 같은 크기로 내용을 바꾸고 mtime 을 되돌린다.
+    const original = "---\ntype: concept\n---\n# A\nalpha 본문. [[b]]\n";
+    const swapped = original.replace("alpha", "AAAAA"); // 같은 바이트 수(ASCII 5자)
+    expect(Buffer.byteLength(swapped)).toBe(Buffer.byteLength(original)); // 크기 동일
+    await writeFile(p, swapped, "utf8");
+    await utimes(p, before.atime, before.mtime); // mtime 복원 — 그래도 ctime 은 올라간다
+
+    const g2 = await buildGraph(wiki());
+    expect(g2.nodes.get("a")?.text).toContain("AAAAA");
+    expect(g2.nodes.get("a")?.text).not.toContain("alpha");
+  });
+
+  it("[codex M3] 권한만 바뀌어도(chmod) 다시 읽는다", async () => {
+    const p = path.join(wiki(), "L3/a.md");
+    const g1 = await buildGraph(wiki());
+    await chmod(p, 0o600);
+    const g2 = await buildGraph(wiki());
+    expect(g2).not.toBe(g1); // mode·ctime 이 키에 있으므로 미스
+    await chmod(p, 0o644);
+  });
+
+  it("[agy B1] 미래 mtime 파일이 있어도 캐시가 무력화되지 않는다", async () => {
+    const p = path.join(wiki(), "L3/a.md");
+    const future = new Date(Date.now() + 3600_000); // 1시간 뒤 — 다른 머신에서 동기된 파일
+    await utimes(p, future, future);
+    const g1 = await buildGraph(wiki());
+    const g2 = await buildGraph(wiki());
+    expect(cacheStats().hasGraph).toBe(true);
+    expect(g2).toBe(g1);
+  });
+
+  it("[agy B2] 수정을 반복해도 파생 예산이 소진되지 않는다(그래프 수명과 함께 리셋)", async () => {
+    for (let i = 0; i < 12; i++) {
+      await write("L3/a.md", `---\ntype: concept\n---\n# A\nalpha 본문 ${i}. [[b]]\n`);
+      await runExpand(["alpha"], { root, topSeed: 6, max: 15, rerank: 11 });
+      // 매 라운드 그래프가 새로 조립되므로 예산은 살아 있는 그래프 몫만 남는다
+      expect(cacheStats().derivedBytes).toBeLessThan(64 * 1024); // 미니 볼트 = 수 KB 규모
+    }
+  });
+
+  it("[리뷰 MINOR] 두 볼트를 번갈아 조회해도 각자 캐시가 살아 있다", async () => {
+    const other = await mkdtemp(path.join(os.tmpdir(), "llmwiki-p4-alt-"));
+    try {
+      const dir = path.join(other, "wiki", "L3");
+      await mkdir(dir, { recursive: true });
+      await writeFile(path.join(dir, "z.md"), "---\ntype: fact\n---\n# Z\nzeta\n", "utf8");
+      const t = Date.now() / 1000 - 30;
+      await utimes(path.join(dir, "z.md"), t, t);
+
+      const a1 = await buildGraph(wiki());
+      const b1 = await buildGraph(path.join(other, "wiki"));
+      const a2 = await buildGraph(wiki()); // 다른 볼트를 거친 뒤에도 적중해야 한다
+      const b2 = await buildGraph(path.join(other, "wiki"));
+      expect(a2).toBe(a1);
+      expect(b2).toBe(b1);
+      expect(cacheStats().roots).toBe(2);
+    } finally {
+      await rm(other, { recursive: true, force: true });
+    }
+  });
+
+  it("[리뷰 MINOR] search 가 채운 텍스트 캐시를 graph 가 이어받아도 결과가 같다", async () => {
+    const viaSearchFirst = [await runSearch(["alpha"], root, 8), await runExpand(["alpha"], { root, topSeed: 6, max: 15, rerank: 0 })];
+    resetCache();
+    const viaGraphFirst = [await runSearch(["alpha"], root, 8), await runExpand(["alpha"], { root, topSeed: 6, max: 15, rerank: 0 })];
+    expect(viaSearchFirst).toEqual(viaGraphFirst);
+
+    // 수정 후에도 두 경로가 같은 것을 본다
+    await write("L3/b.md", "---\ntype: concept\n---\n# B\nalpha 추가. [[a]]\n");
+    const s2 = await runSearch(["alpha"], root, 8);
+    const e2 = await runExpand(["alpha"], { root, topSeed: 6, max: 15, rerank: 0 });
+    expect(s2).toContain("b");
+    expect(e2).toContain("b");
   });
 });

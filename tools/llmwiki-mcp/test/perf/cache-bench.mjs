@@ -26,7 +26,12 @@ if (!root || terms.length === 0) {
   process.exit(2);
 }
 const opts = { root, topSeed: 6, max: 15, rerank: 11 };
-const med = (xs) => [...xs].sort((a, b) => a - b)[Math.floor(xs.length / 2)];
+/** 표준 median — 짝수 개면 가운데 둘의 평균(codex MAJOR-7: 상위 중앙값을 median 이라 부르지 않는다). */
+const med = (xs) => {
+  const s = [...xs].sort((a, b) => a - b);
+  const m = s.length >> 1;
+  return s.length % 2 ? s[m] : (s[m - 1] + s[m]) / 2;
+};
 
 async function timed(fn) {
   const t = performance.now();
@@ -65,6 +70,15 @@ for (let i = 0; i < RUNS; i++) {
   warmOut = out;
 }
 
+// second — 캐시를 비운 뒤 1회차를 버리고 **정확히 2회차**만 측정(P4-09 문구가 '2회차'이므로 그대로 잰다)
+const seconds = [];
+for (let i = 0; i < RUNS; i++) {
+  resetCache();
+  await runExpand(terms, opts);
+  const [ms] = await timed(() => runExpand(terms, opts));
+  seconds.push(ms);
+}
+
 // stat 스캔 단독(walkMd + snapshot) — warm 이 매번 치르는 고정 비용
 const base = path.join(root, "wiki");
 const scans = [];
@@ -77,6 +91,7 @@ const f = (x) => x.toFixed(1).padStart(8);
 console.log(`root_pages=${(await walkMd(base)).length} terms=${terms.length} runs=${RUNS} (median ms, 인프로세스)`);
 console.log(`  off (LLMWIKI_CACHE=0) ${f(med(offs))}`);
 console.log(`  cold (1회차)          ${f(med(colds))}`);
-console.log(`  warm (2회차 이후)     ${f(med(warms))}   = off 대비 ${(100 * (1 - med(warms) / med(offs))).toFixed(1)}% 절감`);
+console.log(`  second (정확히 2회차)  ${f(med(seconds))}`);
+console.log(`  warm (반복 median)    ${f(med(warms))}   = off 대비 ${(100 * (1 - med(warms) / med(offs))).toFixed(1)}% 절감`);
 console.log(`  stat scan (walk+stat) ${f(med(scans))}`);
 console.log(`  identical_output=${offOut === warmOut}`);

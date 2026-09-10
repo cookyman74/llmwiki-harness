@@ -57,6 +57,15 @@ jobs:
       - name: Parity (Python vs Node, fixtures + golden drift)
         working-directory: ${{ github.workspace }}
         run: python tests/parity.py
+      # P4 외부리뷰(codex #5·agy MAJOR-1) — 캐시 on/off 양쪽이 같은 출력을 내는지 CI 가 지킨다.
+      - name: Parity with cache disabled (LLMWIKI_CACHE=0)
+        working-directory: ${{ github.workspace }}
+        env:
+          LLMWIKI_CACHE: '0'
+        run: python tests/parity.py
+      - name: Differential fuzz (Python 2패스 정본 vs Node 1패스 포팅)
+        working-directory: ${{ github.workspace }}
+        run: python tests/parity_fuzz.py
       # npm 패키지에 dist/·README.md·package.json 외 파일이 섞이지 않는지 검사 (P1-45).
       # bash 는 3 OS 러너 모두에 있음(Windows 는 Git Bash) — pwsh 기본 셸 회피.
       - name: Read-only guard (no fs write APIs in src/)
