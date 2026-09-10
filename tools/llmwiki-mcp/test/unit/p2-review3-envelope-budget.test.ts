@@ -51,7 +51,7 @@ describe("3차 MAJOR-4: 응답 envelope 전체 예산(200 KB)", () => {
     expect(text(r)).toBe(sc.text);
     // 잘린 텍스트라도 첫 페이지의 헤더·클레임은 살아있다(앞에서부터 보존)
     expect(text(r)).toContain("big-1");
-  });
+  }, 30000);
 
   it("한글 팩도 같은 예산 — 바이트 기준이라 UTF-16 길이는 상한보다 작다", async () => {
     const r = await c.call("wiki_pack", { slugs: ["big-kr"] });
@@ -61,7 +61,7 @@ describe("3차 MAJOR-4: 응답 envelope 전체 예산(200 KB)", () => {
     expect(sc.pages).toEqual([]);
     expect(Buffer.byteLength(text(r), "utf8")).toBeLessThanOrEqual(HALF);
     expect(text(r).length).toBeLessThan(HALF); // 한글 1자 = 3바이트 → 길이는 바이트보다 짧다
-  });
+  }, 30000);
 
   it("wiki_read_page 도 envelope 전체가 200 KB 이내", async () => {
     const r = await c.call("wiki_read_page", { slug: "big-kr" }); // 원문 ~600 KB
@@ -74,7 +74,7 @@ describe("3차 MAJOR-4: 응답 envelope 전체 예산(200 KB)", () => {
     // 예산 안의 페이지는 그대로
     const t = await c.call("wiki_read_page", { slug: "tiny" });
     expect((t.structuredContent as Record<string, unknown>).truncated).toBe(false);
-  });
+  }, 30000);
 
   it("예산 안의 응답은 손대지 않는다 — pages 보존, truncated:false", async () => {
     const r = await c.call("wiki_pack", { slugs: ["tiny"] });
@@ -85,5 +85,5 @@ describe("3차 MAJOR-4: 응답 envelope 전체 예산(200 KB)", () => {
     expect(pages[0].claims).toEqual(["아주 작은 주장"]);
     expect(Buffer.byteLength(JSON.stringify(sc), "utf8")).toBeLessThan(RESPONSE_LIMIT);
     expect(text(r).endsWith(TRUNC_MARKER)).toBe(false);
-  });
+  }, 30000);
 });

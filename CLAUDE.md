@@ -81,6 +81,8 @@ Ebbinghaus: 보존율 R=exp(−Δt/S), `decay_class`가 S 결정(아키텍처 �
 
 **세션 종료 시:** L1-working이 비어있지 않으면 `wiki-consolidate`로 L1→L2 압축을 제안한다. 마지막 lint로부터 3일+ 지났으면 lint를 권한다(Stop 훅이 알림).
 
+**동기 규칙(MCP 서버):** 리트리벌 규칙(랭킹·스코프·팩 형식)을 바꾸면 **Python 정본(`.claude/skills/wiki-lint/scripts/`)·TS 포팅(`tools/llmwiki-mcp/src/`)·픽스처 골든셋** 3점을 한 PR 에서 함께 고친다. 패리티 CI(`tests/parity.py`)가 어긋나면 실패한다.
+
 **변경 이력:**
 | 날짜 | 변경 내용 | 대상 | 사유 |
 |------|----------|------|------|
@@ -101,6 +103,7 @@ Ebbinghaus: 보존율 R=exp(−Δt/S), `decay_class`가 S 결정(아키텍처 �
 | 2026-08-07 | raw immutable 범위 축소 | 편집 규칙(raw 수정 허용 조건·재인제스트 상시 허용) | immutable을 raw 전체에 적용하니 `raw/working/` 초안 정리조차 막힘 → immutable은 `ingest_status: done`인 소스에만 한정. done 아닌 파일은 자유 수정, 재인제스트는 언제든 요청 가능(done 본문 수정 시 승인+`stale` 강등) |
 | 2026-08-28 | 녹음 감지 자동화 (감지만) | pending-recordings.py(신설)·wiki-status-check(run_skill 배선)·meeting-minutes/references/auto-watch.md | 08-21 녹음 4건이 일주일간 방치된 것을 아무도 몰랐음 → SessionStart가 미처리 녹음을 세어 알림. **전사·회의록은 자동화하지 않는다** — 백엔드 판정(로컬/외부)이 비가역이고 파일명·일일노트로 회의 성격을 알 수 없다(실제로 08-28 녹음은 메모가 `lll`뿐이었으나 내용은 심사 회의였다). 훅 메시지가 "사용자에게 회의 성격을 물어볼 것"을 명시해 모델의 임의 실행을 차단 |
 | 2026-09-09 | MCP 서버(Node) P0 준비 | develop_docs/v0.8.6(PRD·DESIGN·리뷰·todo 작업계획 5단계)·tools/llmwiki-mcp 스캐폴딩·scope-expand.py/search.py 결정성(`dirs.sort()`·newline 고정)·픽스처 볼트+골든셋 56 | 위키 리트리벌을 Claude Code 밖(Codex·Gemini·agy·Cursor 등)에서도 쓰기 위해 MCP stdio 서버를 TS로 포팅하기로 결정(Node 런타임이 클라이언트에 보장됨). Python 정본은 랭킹 무변경, 순회 결정성만 수정(실볼트 20출력 diff 0). 실 볼트 출력 근거파일(todo/baseline·evidence)은 gitignore — 공개 저장소 콘텐츠 유출 방지 |
+| 2026-09-09 | MCP 서버 P3 — 배포 준비·클라이언트 실측 | tools/llmwiki-mcp/README.md(370줄)·LICENSE·npm 메타·templates/mcp-client-guide.md+파생 4종(build.py)·저장소 README §5-5 | 8종 등록 스니펫을 `print-config` 실출력으로 문서화. **클라이언트 3종 실측**(Claude Code·Codex·agy)에서 codex 등록 명령의 실제 결함 발견(`-c startup_timeout_sec` 조합은 invalid transport 로 실패) 및 라우팅 준수율 측정 — Claude Code 준수, agy 는 스니펫 설치 후 준수. npm publish·태그는 사용자 승인 대기 |
 | 2026-09-09 | MCP 서버 P2 — 도구 4개·보안·CLI | tools/llmwiki-mcp/src(tools·server·read·print-config·cli)·test/unit p2-*·ci.yml(read-only 가드) | 저수준 `Server`+수기 JSON Schema 채택(McpServer+zod 는 `$schema`·`additionalProperties` 자동 삽입 → 다중 클라이언트 호환 규칙 위반, 실측). 도구 wiki_search/expand/pack/read_page — 입력 런타임 정규화(문자열 terms·`[[slug]]`·`.md`), 상한, 200KB 절단, suggested_next 라우팅 힌트, alias 리다이렉트. 보안: walkMd·read_page realpath 경계(`path.relative`), symlink 스킵, 쓰기 API 0(CI 가드). CLI: `--selftest`·`print-config`(8 클라이언트, 출력만)·`--help`. zod 런타임 의존 제거 |
 | 2026-09-09 | MCP 서버 P1 리트리벌 포팅 | tools/llmwiki-mcp/src(vault·graph·search·expand·bm25·pack·format·once·cli `--once`·pylower-table)·test/unit 19파일 176건·tests/parity.py·parity_fuzz.py·ci.yml parity 잡+pack 가드 | search/expand/rerank/pack 을 TS 로 포팅(비-rerank 바이트 동일, rerank 점수 ±0.05). Python 문자열 의미(strip/lower/count/len·`\s`·`\w`·코드포인트 정렬·`.1f` half-even·**Unicode 15.0 lower 테이블**)를 헬퍼로 재현. 픽스처 56/56·실볼트 20/20(digest 동일)·퍼징 420/420. 외부리뷰 2라운드(codex·agy)로 fmt1 거짓 tie·이중 BOM·NaN 허점·Unicode 버전 차이 검출·수정. 규칙: 리트리벌 규칙 변경은 Python·TS·픽스처 3점을 한 PR 에서 |
 | 2026-09-09 | 훅 경로 절대화 | .claude/settings.json (SessionStart·PostToolUse 2건) | 훅이 `python3 .claude/...` 상대경로여서 셸 cwd가 하위 폴더로 바뀐 상태에서 PostToolUse가 실패(develop_docs 편집 중 실증). `"$CLAUDE_PROJECT_DIR"` 기준 절대경로로 변경 — 스크립트 자체는 `__file__`로 ROOT를 잡아 영향 없음 |

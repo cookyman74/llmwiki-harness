@@ -112,8 +112,8 @@ jobs:
           npm pack --dry-run --json --ignore-scripts | python -c '
           import json, sys
           files = [f["path"] for f in json.load(sys.stdin)[0]["files"]]
-          # 허용: dist/** (.md 제외) · README.md · package.json (npm 이 항상 포함)
-          allowed = lambda p: (p.startswith("dist/") and not p.endswith(".md")) or p in ("README.md", "package.json")
+          # 허용: dist/** (.md 제외) · README.md · LICENSE · package.json (npm 이 항상 포함)
+          allowed = lambda p: (p.startswith("dist/") and not p.endswith(".md")) or p in ("README.md", "LICENSE", "package.json")
           bad = [p for p in files if not allowed(p) or "test/" in p]
           print(f"{len(files)} files in tarball:\n  " + "\n  ".join(files))
           if bad:

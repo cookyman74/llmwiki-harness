@@ -9,7 +9,7 @@ import { FIXTURE_VAULT, connect, type Connected } from "./p2-helpers.js";
 const FORBIDDEN = /"(anyOf|oneOf|allOf|\$ref|\$defs|const|default|additionalProperties|format|\$schema|execution)"/;
 const ALLOWED_KEYS = new Set(["type", "properties", "required", "items", "enum", "description", "minimum", "maximum", "minItems", "maxItems", "minLength", "maxLength"]);
 const ALLOWED_TYPES = new Set(["object", "array", "string", "integer", "number", "boolean"]);
-const EXPECTED_NAMES = ["wiki_search", "wiki_expand", "wiki_pack", "wiki_read_page"];
+const EXPECTED_NAMES = ["wiki_expand", "wiki_pack", "wiki_read_page", "wiki_search"] // P3 실측 반영: 진입점 먼저, fallback(wiki_search) 마지막 — 클라이언트가 목록 앞을 먼저 고르는 경향;
 const HANGUL = /[ᄀ-ᇿ㄰-㆏가-힯]/;
 
 /** 스키마 트리를 걸으며 (경로, 키, 값) 을 방문. properties 의 키(프로퍼티 이름)는 스키마 키워드가 아니므로 제외. */

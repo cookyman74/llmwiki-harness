@@ -348,6 +348,22 @@ exit=1     # 네트워크 호출 0회
 
 > **화자 분리는 지원하지 않는다.** Whisper 계열은 "누가 말했는지"를 출력하지 않는다. `meeting-scribe`는 근거(호명·자기소개·역할 명시)가 있을 때만 발언을 귀속하고, 나머지는 화자 없이 기록한다. 심사·평가 회의에서 잘못된 발언 귀속은 내용 누락보다 해롭기 때문이다.
 
+### 5-5. MCP 서버 (`tools/llmwiki-mcp/`) — 볼트 밖 에이전트에서 위키 쓰기
+
+지금까지의 구성요소는 모두 **볼트 안에서 도는 Claude Code**를 전제한다. 그런데 위키를 가장 쓰고 싶은 순간은 대개 볼트 밖이다 — 다른 저장소에서 코드를 고치는 중, Codex CLI로 작업하는 중, Cursor에서 문서를 쓰는 중. `tools/llmwiki-mcp/`는 그 간극을 메우는 **읽기 전용 MCP 서버**(Node ≥20, TypeScript)다. 7.5장의 리트리벌 파이프라인(렉시컬 seed → 관계 1홉 확장 → MoC 멤버 → 옵션 BM25 rerank → claims 팩)을 도구 4개(`wiki_expand`·`wiki_pack`·`wiki_read_page`·`wiki_search`)로 노출해, Claude Code(타 프로젝트)·Codex·Gemini·agy·Cursor·Windsurf·Claude Desktop·VS Code 8종이 같은 바이너리를 등록해 쓴다. 등록 스니펫은 `npx llmwiki-mcp print-config --client <c> --root <볼트>`가 생성한다.
+
+```bash
+claude mcp add --scope user llmwiki -- npx -y llmwiki-mcp --root <볼트>
+```
+
+**Python 스크립트가 여전히 정본이다.** 볼트 안 `wiki-query`·`wiki-ops`는 무변경 — 계속 `search.py`·`scope-expand.py`를 직접 호출한다. TS는 그 포팅이고, 동일성은 `tests/parity.py`(픽스처 14질의 × 4모드 stdout 바이트 비교 — CI에서 3 OS 매트릭스로 돌고, `--vault`로 실볼트 비교)가 지키고, `tests/parity_fuzz.py`(차등 퍼징, 로컬)가 골든셋 사각지대를 좁힌다. 그래서 규칙 하나가 따라온다:
+
+> **리트리벌 규칙을 바꾸면 Python 스크립트·TS 포팅·패리티 픽스처 3점을 한 PR에서 함께 고친다.** 한쪽만 고치면 CI 패리티 잡이 막는다.
+
+서버는 쓰기 API가 0개다(CI가 `src/`의 `fs.*` 멤버를 허용목록으로 검사). 인제스트·파일링·린트는 계속 볼트 하네스의 일이고, MCP는 **읽기**만 한다.
+
+상세(설치·8종 등록 매트릭스·도구 계약·상한·한계·제거 절차)는 [`tools/llmwiki-mcp/README.md`](tools/llmwiki-mcp/README.md), 설계·검토 기록은 `develop_docs/v0.8.6/`에 있다.
+
 ---
 
 ## 6. 사용법 — 5가지 오퍼레이션
@@ -619,7 +635,7 @@ title: <한국어 제목>
 aliases: []                  # 영문 파일명의 한국어 라벨/별칭
 tags: []                     # 소문자, 예: [llm, training]
 created: YYYY-MM-DD
-updated: 2026-08-14
+updated: 2026-09-09
 
 # --- L3/L4 전용 (신뢰도·망각) ---
 confidence: 0.0~1.0          # confidence.py로 계산

@@ -9,7 +9,8 @@
   },
   "files": [
     "dist",
-    "README.md"
+    "README.md",
+    "LICENSE"
   ],
   "engines": {
     "node": ">=20"
@@ -19,8 +20,10 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "lint": "eslint src test",
-    "check": "npm run lint && npm run typecheck && npm test && npm run build",
-    "clean": "node -e \"require(\\\"node:fs\\\").rmSync(\\\"dist\\\",{recursive:true,force:true})\""
+    "check": "npm run lint && npm run typecheck && npm run build && npm test",
+    "clean": "node -e \"require(\\\"node:fs\\\").rmSync(\\\"dist\\\",{recursive:true,force:true})\"",
+    "prepack": "npm run build",
+    "prepublishOnly": "npm run check"
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "1.30.0"
@@ -28,9 +31,28 @@
   "devDependencies": {
     "@eslint/js": "10.0.1",
     "@types/node": "26.5.0",
+    "ajv": "8.20.0",
     "eslint": "10.10.0",
     "typescript": "6.0.3",
     "typescript-eslint": "8.70.0",
     "vitest": "5.0.0"
-  }
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/cookyman74/llmwiki-harness.git",
+    "directory": "tools/llmwiki-mcp"
+  },
+  "homepage": "https://github.com/cookyman74/llmwiki-harness/tree/main/tools/llmwiki-mcp#readme",
+  "bugs": {
+    "url": "https://github.com/cookyman74/llmwiki-harness/issues"
+  },
+  "keywords": [
+    "mcp",
+    "model-context-protocol",
+    "obsidian",
+    "wiki",
+    "retrieval",
+    "llm",
+    "knowledge-base"
+  ]
 }
