@@ -282,7 +282,7 @@ describe("agy r2 MAJOR-2: semaphore hands the slot to a waiter — inFlight neve
     expect(concurrencyState()).toEqual({ inFlight: 0, waiting: 0 });
     const N = 12;
     let done = 0;
-    const ps = Array.from({ length: N }, () => callTool(FIXTURE_VAULT, "wiki_expand", { terms: ["rerank", "bm25"], rerank: 11 }).finally(() => done++));
+    const ps = Array.from({ length: N }, () => callTool(FIXTURE_VAULT, "wiki_expand", { terms: ["rerank", "bm25"], rerank: 11 }, undefined, true).finally(() => done++));
     // acquire() 는 처음 4개를 동기적으로 통과시키고 나머지는 동기적으로 큐에 넣는다
     expect(concurrencyState()).toEqual({ inFlight: MAX_CONCURRENT_CALLS, waiting: N - MAX_CONCURRENT_CALLS });
     const samples: { inFlight: number; waiting: number }[] = [];
@@ -311,12 +311,12 @@ describe("agy r2 MAJOR-2: semaphore hands the slot to a waiter — inFlight neve
 
   it("slots are released on isError results and unknown tools too — state returns to {0,0}", async () => {
     const rs = await Promise.all([
-      callTool(FIXTURE_VAULT, "wiki_search", { terms: 5 }),
-      callTool(FIXTURE_VAULT, "wiki_nope", {}),
-      callTool(FIXTURE_VAULT, "wiki_read_page", { slug: "no-such-page-xyz" }),
-      callTool(FIXTURE_VAULT, "wiki_pack", { slugs: [] }),
-      callTool(FIXTURE_VAULT, "wiki_expand", { terms: ["rerank"], max: 999 }),
-      callTool(FIXTURE_VAULT, "wiki_search", { terms: ["rerank"] }),
+      callTool(FIXTURE_VAULT, "wiki_search", { terms: 5 }, undefined, true),
+      callTool(FIXTURE_VAULT, "wiki_nope", {}, undefined, true),
+      callTool(FIXTURE_VAULT, "wiki_read_page", { slug: "no-such-page-xyz" }, undefined, true),
+      callTool(FIXTURE_VAULT, "wiki_pack", { slugs: [] }, undefined, true),
+      callTool(FIXTURE_VAULT, "wiki_expand", { terms: ["rerank"], max: 999 }, undefined, true),
+      callTool(FIXTURE_VAULT, "wiki_search", { terms: ["rerank"] }, undefined, true),
     ]);
     expect(rs.slice(0, 5).every((r) => r.isError)).toBe(true);
     expect(rs[5].isError).toBeFalsy();
@@ -373,7 +373,7 @@ describe("codex r2 #3: raw input guards run BEFORE splitting/iterating (RAW_INPU
       ["wiki_read_page", { slug: "a".repeat(5000) }, /slug too long/],
     ];
     for (const [name, args, re] of cases) {
-      const r = await callTool(FIXTURE_VAULT, name, args);
+      const r = await callTool(FIXTURE_VAULT, name, args, undefined, true);
       expect(r.isError, name).toBe(true);
       expect(text(r), name).toMatch(re);
       expect(text(r), name).not.toContain("\n");
@@ -398,7 +398,7 @@ describe("codex r2 #3: vault scale limits — MAX_DIRS / MAX_DEPTH / MAX_TOTAL_B
     await writeFile(path.join(deep33, "leaf.md"), "---\ntype: fact\n---\n- claim:: deep\n", "utf8");
     await expect(walkMd(wiki)).rejects.toBeInstanceOf(VaultLimitError);
     await expect(walkMd(wiki)).rejects.toThrow(/depth exceeds 32/);
-    const r = await callTool(root, "wiki_search", { terms: ["deep"] });
+    const r = await callTool(root, "wiki_search", { terms: ["deep"] }, undefined, true);
     expect(r.isError).toBe(true);
     expect(text(r)).toMatch(/depth exceeds 32/);
     // 32 단계는 허용

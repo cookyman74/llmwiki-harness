@@ -57,7 +57,7 @@ let c: Connected;
 let outputSchemas: Map<string, Schema>;
 
 beforeAll(async () => {
-  c = await connect(FIXTURE_VAULT);
+  c = await connect(FIXTURE_VAULT, { structured: true });
   const { tools } = await c.client.listTools();
   outputSchemas = new Map(tools.map((t) => [t.name, (t.outputSchema ?? {}) as Schema]));
 });

@@ -138,7 +138,7 @@ describe("P3-27+ 픽스처 볼트 실응답 ↔ ajv", () => {
   for (const s of SAMPLES) {
     it(`${s.name} — 유효한 인자의 structuredContent 가 ajv outputSchema 를 통과`, async () => {
       expect(ajvErrors(validator(`${s.name}:in`), s.args), `${s.name} sample args must satisfy inputSchema`).toEqual([]);
-      const r = await callTool(FIXTURE_VAULT, s.name, s.args);
+      const r = await callTool(FIXTURE_VAULT, s.name, s.args, undefined, true);
       expect(r.isError, `${s.name} returned isError`).toBeFalsy();
       expect(r.structuredContent).toBeDefined();
       const sc = r.structuredContent as Record<string, unknown>;

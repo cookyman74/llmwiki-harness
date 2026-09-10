@@ -63,11 +63,11 @@ tests/parity.py           (저장소 루트, 기존 smoke.py 옆) Python↔Node 
 
 ## 3. 도구 계약
 
-공통: 모든 도구는 `content[0].text`에 **사람이 읽는 텍스트**를, `structuredContent`에 JSON을 함께 반환한다. Python 스크립트와의 **바이트 동일 보장은 `--once` CLI** 에 있다(패리티 테스트 대상). MCP 응답은 `wiki_expand` 에 `suggested_next: …` 한 줄을 덧붙이고 200KB 예산을 적용한다. 텍스트는 패리티·사람 가독용, JSON은 에이전트 파싱용. 오류는 MCP `isError: true` + 한 줄 메시지.
+공통: 모든 도구는 `content[0].text`에 **사람이 읽는 텍스트**를 반환한다. `structuredContent`(+ 도구별 `outputSchema`)는 **`LLMWIKI_STRUCTURED=1` 일 때만** 함께 반환한다 — 아래 'P4-27+ 결정' 참조. Python 스크립트와의 **바이트 동일 보장은 `--once` CLI** 에 있다(패리티 테스트 대상). MCP 응답은 `wiki_expand` 에 `suggested_next: …` 한 줄을 덧붙이고 200KB 예산을 적용한다. 텍스트는 패리티·사람 가독용, JSON은 에이전트 파싱용. 오류는 MCP `isError: true` + 한 줄 메시지.
 
 동일성의 정의: Python `stdout` 전체(줄 구분 `\n`, **마지막 개행 포함**)와 `--once` 출력이 바이트 동일. MCP `text`도 같은 문자열(개행 제거 안 함). Windows에서도 `\n` 고정(Python 쪽은 `sys.stdout.reconfigure(newline="\n")`을 patch 범위에 포함 — §7). 예외는 rerank 점수 열 하나(§7 허용오차).
 
-`structuredContent`는 MCP 2025-06-18 스펙·TS SDK 표준 필드다(외부리뷰 2026-09-09에서 "비표준" 지적 → SDK 문서로 반증·기각). 각 도구에 **`outputSchema`를 선언**한다 — 선언 시 SDK가 전송 전 검증하고, 검증 클라이언트는 불일치 결과를 거부하므로 스키마와 실제 JSON을 단위 테스트로 맞춘다. 구형 클라이언트는 `content[0].text`만 보므로 텍스트가 1차 표현이다.
+`structuredContent`는 MCP 2025-06-18 스펙·TS SDK 표준 필드다(외부리뷰 2026-09-09에서 "비표준" 지적 → SDK 문서로 반증·기각). **`LLMWIKI_STRUCTURED=1` 일 때** 각 도구에 `outputSchema`를 선언한다(P4-27+ 이후 기본은 미선언·텍스트만) — 선언 시 SDK가 전송 전 검증하고, 검증 클라이언트는 불일치 결과를 거부하므로 스키마와 실제 JSON을 단위 테스트로 맞춘다. 구형 클라이언트는 `content[0].text`만 보므로 텍스트가 1차 표현이다.
 
 **입력 내결함성(외부리뷰 #6 반영).** LLM 클라이언트의 흔한 변형을 도구 진입점에서 정규화한다: `terms`가 문자열이면 공백 분할 → 배열; `slug`/`slugs` 항목은 양끝 공백·`[[`·`]]`·`.md`·`wiki/…/` 접두를 제거. 정규화 후 검증 실패는 `isError` + 어떤 입력이 왜 거부됐는지 한 줄. **정규화는 런타임(핸들러 첫 줄)에서 하고 스키마에는 드러내지 않는다** — 아래 호환 규칙 때문.
 
@@ -78,6 +78,7 @@ tests/parity.py           (저장소 루트, 기존 smoke.py 옆) Python↔Node 
 - **`instructions`에 의존하지 않는다.** Claude Code는 모델에 노출하지만 Codex·Gemini·Cursor는 미확인 → description 한 줄 + `suggested_next`로도 라우팅이 성립해야 한다(PRD 지표 "규칙 파일 없이 준수").
 - **prompts/resources는 선택 기능.** 클라이언트 지원이 갈리므로 필수 경로에 두지 않는다. v1은 tools만.
 - **`structuredContent`를 못 읽는 클라이언트**는 `content[0].text`로 동작. 텍스트가 1차 표현인 이유.
+- **P4-27+ 결정(2026-09-10, E2E 실측 근거) — 구조화 출력은 기본 off, opt-in.** P2 에서는 `structuredContent`+`outputSchema` 를 항상 반환하기로 했으나, Claude Code 2.1.267 실클라이언트 E2E 에서 클라이언트가 `structuredContent` JSON 을 모델에 넘기고, 우리 structuredContent 가 `text` 와 `rows`/`pages` 를 이중으로 담아 모델 입력이 텍스트 대비 **2.06~4.24배**(pack 9,715B → 20,015B)임을 확인했다. 이 서버의 소비자는 LLM 이고 리트리벌 설계의 토큰 절감(A/B −55%)은 텍스트(TSV) 기준이므로 기본은 텍스트만 보낸다. `text` 만 빼는 안(1안)은 기각 — JSON 행 표현 자체가 TSV 보다 무겁다(expand 2.6배). MCP 스펙상 outputSchema 선언 = structuredContent 전송 의무라 둘은 `LLMWIKI_STRUCTURED=1` 로 함께 켠다. 응답 JSON 전체 200KB 예산은 **두 모드 모두** 적용(기본 모드는 JSON 이스케이프로 부푼 envelope 을 재측정·축소 — 외부리뷰 P4-27 MAJOR). 텍스트는 작은 응답에서 두 모드 바이트 동일, envelope 을 넘는 큰 응답에서만 opt-in 쪽이 더 짧다(text 가 structuredContent 에 한 번 더 실리므로 — 의도된 차이, 테스트 고정). outputSchema 검증(fail-closed)은 opt-in 경로에 유지. opt-in 모드의 `content[0].text` 가 structuredContent 의 JSON 직렬화가 아니라 TSV 인 것은 스펙 권고(SHOULD)와 다른 **의도된 예외**(텍스트 클라이언트·Python 패리티가 이 텍스트에 의존). `--once` 패리티 무영향.
 - **stdout 순수성.** transport 외 stdout 쓰기 0. `console.log` ESLint 금지, smoke가 기동 직후 stdout 첫 바이트가 `{`인지 검사.
 
 ### 3.1 `wiki_search` — lexical 파일 랭킹 (search.py --files)

@@ -35,7 +35,7 @@ beforeAll(async () => {
     canSymlink = false;
     skipReason = `symlink creation not permitted here: ${e instanceof Error ? e.message : String(e)}`;
   }
-  c = await connect(root);
+  c = await connect(root, { structured: true });
 });
 afterAll(async () => {
   await c?.close();

@@ -15,7 +15,7 @@ const HALF = Math.floor(RESPONSE_LIMIT / 2); // envelope 초과 시 텍스트 �
 
 let c: Connected;
 beforeAll(async () => {
-  c = await connect(FIXTURE_VAULT);
+  c = await connect(FIXTURE_VAULT, { structured: true });
 });
 afterAll(async () => c.close());
 
@@ -166,7 +166,7 @@ describe("P2-23 / P2-10 200 KB text cap (temp vault)", () => {
     await writeFile(path.join(root, "wiki", "L3-semantic", "many-claims.md"), `---\ntype: fact\nconfidence: 0.85\n---\n${claims}\n`, "utf8");
     expect(claims.length).toBeGreaterThan(TEXT_LIMIT);
     await writeFile(path.join(root, "wiki", "L3-semantic", "small-page.md"), "---\ntype: concept\n---\n# small\n- claim:: tiny claim\n", "utf8");
-    big = await connect(root);
+    big = await connect(root, { structured: true });
   });
   afterAll(async () => {
     await big?.close();
@@ -180,11 +180,13 @@ describe("P2-23 / P2-10 200 KB text cap (temp vault)", () => {
     const sc = r.structuredContent as Record<string, unknown>;
     expect(sc.truncated).toBe(true);
     expect(text(r).endsWith(TRUNC_MARK)).toBe(true);
-    // text 만 200 KB 로 잘라도 frontmatter·path 를 더한 JSON 전체는 상한을 넘었다(3차 MAJOR-4) → envelope 초과 시 text 를
-    // RESPONSE_LIMIT/2 로 다시 줄인다. ASCII 본문이라 정확히 절반 예산까지 채운다.
-    expect(Buffer.byteLength(text(r), "utf8")).toBe(HALF);
-    expect(text(r).length).toBe(HALF - MARK_BYTES + TRUNC_MARK.length);
-    expect(Buffer.byteLength(JSON.stringify(sc), "utf8")).toBeLessThanOrEqual(RESPONSE_LIMIT); // 응답 전체 예산
+    // text 만 200 KB 로 잘라도 JSON 전체는 상한을 넘는다(3차 MAJOR-4). 텍스트는 content 와 structuredContent 에 **두 번** 실리므로
+    // **전송되는 응답 전체**를 재야 한다 — 예전 단언은 structuredContent 만 재서 '정확히 절반'을 기대했고, 실제 전송량은 상한을
+    // 넘었다(P4-27 에서 검출·정정). 텍스트는 절반 이하이면서 예산을 거의 다 쓴다(과절단 금지).
+    const wireBytes = Buffer.byteLength(JSON.stringify({ content: r.content, structuredContent: sc }), "utf8");
+    expect(wireBytes).toBeLessThanOrEqual(RESPONSE_LIMIT);
+    expect(Buffer.byteLength(text(r), "utf8")).toBeLessThanOrEqual(HALF);
+    expect(Buffer.byteLength(text(r), "utf8")).toBeGreaterThan(HALF - 2048); // ASCII 본문 — 이스케이프가 없어 거의 절반까지 채운다
     expect(text(r)).toBe(sc.text);
     expect((sc.frontmatter as Record<string, unknown>).type).toBe("concept"); // 절단이 frontmatter 요약에는 영향 없음
   });
@@ -196,14 +198,14 @@ describe("P2-23 / P2-10 200 KB text cap (temp vault)", () => {
     expect(sc.truncated).toBe(true);
     expect(text(r).endsWith(TRUNC_MARK)).toBe(true);
     // 상한은 UTF-8 **바이트** 기준(리뷰: 팩 텍스트에 한글 헤더가 섞여 UTF-16 길이 ≠ 바이트) — 마커 앞 본문이 예산 안에서 최대.
-    // envelope 초과 응답이므로 예산은 RESPONSE_LIMIT/2 다.
+    // envelope 초과 응답이므로 텍스트는 절반 이하. 줄마다 개행이 JSON 에서 2바이트로 부푸는 몫만큼 비례 보정되어 절반보다 조금 작다.
     const bodyBytes = Buffer.byteLength(text(r).slice(0, -TRUNC_MARK.length), "utf8");
     expect(bodyBytes).toBeLessThanOrEqual(HALF - MARK_BYTES);
-    expect(bodyBytes).toBeGreaterThan(HALF - MARK_BYTES - 4);
+    expect(bodyBytes).toBeGreaterThan(Math.floor(HALF * 0.9)); // 과절단 금지(고정 비율 축소는 여기서 1/8 까지 떨어졌다)
     expect(Buffer.byteLength(text(r), "utf8")).toBeLessThanOrEqual(HALF); // 마커 포함 전체 ≤ 절반 예산
     expect(text(r)).toBe(sc.text);
-    // **응답 전체**(JSON envelope)가 상한 이내 — text·pages 를 각각 잘라도 합이 넘던 결함의 회귀 가드
-    expect(Buffer.byteLength(JSON.stringify(sc), "utf8")).toBeLessThanOrEqual(RESPONSE_LIMIT);
+    // **전송되는 응답 전체**(content + structuredContent)가 상한 이내 — text·pages 를 각각 잘라도 합이 넘던 결함의 회귀 가드
+    expect(Buffer.byteLength(JSON.stringify({ content: r.content, structuredContent: sc }), "utf8")).toBeLessThanOrEqual(RESPONSE_LIMIT);
     expect(sc.pages).toEqual([]); // wiki_pack 은 envelope 축소 시 pages 를 비운다(텍스트가 1차 표현)
   });
 

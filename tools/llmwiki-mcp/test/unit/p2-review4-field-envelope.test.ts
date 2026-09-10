@@ -26,7 +26,7 @@ const bytes = (v: unknown): number => Buffer.byteLength(JSON.stringify(v), "utf8
 
 describe("P2 3차: read_page frontmatter 상한과 envelope 재측정", () => {
   it("거대한 frontmatter 값이 있어도 응답 envelope 는 200 KB 이내이고 각 필드는 FIELD_LIMIT 이내", async () => {
-    const r = await callTool(realpathSync(root), "wiki_read_page", { slug: "huge-field" });
+    const r = await callTool(realpathSync(root), "wiki_read_page", { slug: "huge-field" }, undefined, true);
     expect(r.isError).toBeUndefined();
     const sc = r.structuredContent as { frontmatter: Record<string, string>; text: string; truncated: boolean };
     expect(bytes(sc)).toBeLessThanOrEqual(RESPONSE_LIMIT);
@@ -37,7 +37,7 @@ describe("P2 3차: read_page frontmatter 상한과 envelope 재측정", () => {
   });
 
   it("정상 페이지는 절단 없이 그대로(회귀 방지)", async () => {
-    const r = await callTool(realpathSync(root), "wiki_read_page", { slug: "normal" });
+    const r = await callTool(realpathSync(root), "wiki_read_page", { slug: "normal" }, undefined, true);
     const sc = r.structuredContent as { frontmatter: Record<string, string>; truncated: boolean };
     expect(sc.truncated).toBe(false);
     expect(sc.frontmatter).toMatchObject({ type: "concept", confidence: "0.85", status: "active" });

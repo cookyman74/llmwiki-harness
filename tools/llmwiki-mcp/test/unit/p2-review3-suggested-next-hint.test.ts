@@ -21,7 +21,7 @@ const V = FIXTURE_VAULT;
 
 let c: Connected;
 beforeAll(async () => {
-  c = await connect(V);
+  c = await connect(V, { structured: true });
 });
 afterAll(async () => c.close());
 

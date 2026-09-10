@@ -240,14 +240,16 @@ The root is reported as basename + hash so logs and screenshots do not leak the 
 
 ## Tools
 
-All four return the human/parity text in `content[0].text` **and** a JSON object in `structuredContent`. Clients that do not support `structuredContent` work from the text alone — the text is the primary representation. Errors come back as `isError: true` with a one-line message.
+By default all four return **text only** in `content[0].text` — the same TSV/markdown text the Python scripts print, plus a `suggested_next:` routing line on `wiki_expand`. Set `LLMWIKI_STRUCTURED=1` to also declare an `outputSchema` per tool and return a matching JSON object in `structuredContent` (the two always go together — the MCP spec requires `structuredContent` once an `outputSchema` is declared). Why text is the default: Claude Code hands `structuredContent` to the model when it is present, and ours repeats the text alongside `rows`/`pages`, so the model received 2–4× the bytes (measured 2026-09-10: `wiki_pack` 9.7 KB of text became 20 KB). Turn it on only for programmatic clients that need the fields.
+
+To opt in, add the variable to the server's environment — e.g. in a JSON client config `"env": { "LLMWIKI_ROOT": "<VAULT>", "LLMWIKI_STRUCTURED": "1" }`, or `claude mcp add … --env LLMWIKI_STRUCTURED=1 …`. Only the value `1` enables it. Note that in structured mode `content[0].text` stays the TSV/markdown text rather than a JSON serialisation of `structuredContent` (the MCP spec *recommends* the latter for backwards compatibility); this is deliberate, because the text is what text-only clients and the Python parity tests rely on. For large responses the text in structured mode can be shorter than in the default mode: the 200 KB budget covers the whole JSON response, and structured mode carries the text twice.
 
 | Tool | When to call it | Inputs (default · range) | Returns |
 |---|---|---|---|
-| `wiki_expand` | **First call for every wiki question.** Lexical seeds → 1-hop neighbours → MoC members, optionally BM25-reranked. | `terms` string[] 1–10, each ≤64 chars · `max` 15 (1–50) · `top_seed` 6 (1–20) · `rerank` 0 (0–50) | text `tier⇥refs⇥slug⇥type` (or `tier⇥score⇥slug⇥type` when reranked) plus a trailing `suggested_next: …` line; JSON `{text, rows[], suggested_next, truncated}` |
-| `wiki_pack` | After `wiki_expand(rerank=11)` for a factual briefing or comparison. Usually the last call. | `slugs` string[] 1–30, each ≤120 chars (`[[…]]`, `#anchor`, `\|alias`, `.md`, `wiki/…/` prefixes are tolerated) | text of `## slug  [type · conf X · status]` + `- claim` / `- (요약) …` / `- 관계) …`; JSON `{text, pages[], truncated}` |
-| `wiki_read_page` | Procedure/how-to questions, or to settle one claim the pack could not. | `slug` string ≤120 chars; aliases resolved once | full page text incl. frontmatter (200 KB cap); JSON `{slug, resolved_from_alias, path, frontmatter{type, confidence, status, superseded_by?, last_confirmed?}, text, truncated}` |
-| `wiki_search` | Fallback only, when `wiki_expand` returned too few candidates. | `terms` string[] 1–10 · `top` 8 (1–50) — a cap, not a fill | text `distinct/total⇥slug⇥type`, or `no matches for: <terms>`; JSON `{text, rows[], matched, truncated}` |
+| `wiki_expand` | **First call for every wiki question.** Lexical seeds → 1-hop neighbours → MoC members, optionally BM25-reranked. | `terms` string[] 1–10, each ≤64 chars · `max` 15 (1–50) · `top_seed` 6 (1–20) · `rerank` 0 (0–50) | text `tier⇥refs⇥slug⇥type` (or `tier⇥score⇥slug⇥type` when reranked) plus a trailing `suggested_next: …` line; JSON (with `LLMWIKI_STRUCTURED=1`) `{text, rows[], suggested_next, truncated}` |
+| `wiki_pack` | After `wiki_expand(rerank=11)` for a factual briefing or comparison. Usually the last call. | `slugs` string[] 1–30, each ≤120 chars (`[[…]]`, `#anchor`, `\|alias`, `.md`, `wiki/…/` prefixes are tolerated) | text of `## slug  [type · conf X · status]` + `- claim` / `- (요약) …` / `- 관계) …`; JSON (with `LLMWIKI_STRUCTURED=1`) `{text, pages[], truncated}` |
+| `wiki_read_page` | Procedure/how-to questions, or to settle one claim the pack could not. | `slug` string ≤120 chars; aliases resolved once | full page text incl. frontmatter (200 KB cap); JSON (with `LLMWIKI_STRUCTURED=1`) `{slug, resolved_from_alias, path, frontmatter{type, confidence, status, superseded_by?, last_confirmed?}, text, truncated}` |
+| `wiki_search` | Fallback only, when `wiki_expand` returned too few candidates. | `terms` string[] 1–10 · `top` 8 (1–50) — a cap, not a fill | text `distinct/total⇥slug⇥type`, or `no matches for: <terms>`; JSON (with `LLMWIKI_STRUCTURED=1`) `{text, rows[], matched, truncated}` |
 
 `terms` may also be sent as a single space-separated string; it is split at the handler. Integers may arrive as numeric strings. Anything else is rejected with a message naming the offending input.
 
@@ -259,7 +261,7 @@ All four return the human/parity text in `content[0].text` **and** a JSON object
 | Factual briefing / comparison | `wiki_expand(terms, rerank=11)` → `wiki_pack(slugs)` → answer |
 | Procedure / how-to | `wiki_expand(terms, max=8)` → `wiki_read_page(slug)` for the candidates |
 
-`wiki_expand` computes this for you and reports it as `suggested_next` (`answer` when `max ≤ 6`, `wiki_pack` when `rerank > 0`, otherwise `wiki_read_page`) — in the JSON *and* as the last line of the text. The same table is in the server's `instructions` and in each tool's description, so clients that ignore `instructions` still get it.
+`wiki_expand` computes this for you and reports it as `suggested_next` (`answer` when `max ≤ 6`, `wiki_pack` when `rerank > 0`, otherwise `wiki_read_page`) — as the last line of the text (and as a JSON field with `LLMWIKI_STRUCTURED=1`). The same table is in the server's `instructions` and in each tool's description, so clients that ignore `instructions` still get it.
 
 ### Answer conventions the server asks for
 
@@ -298,7 +300,8 @@ Usage:
   llmwiki-mcp --once <search|expand|pack> <args…> --root <vault>   (same output as the Python scripts)
   llmwiki-mcp --version | --help
 Env: LLMWIKI_ROOT (vault path), LLMWIKI_DEBUG=1 (per-tool timings on stderr),
-     LLMWIKI_CACHE=0|1 (in-process cache; default on for the server, off for --once/--selftest)
+     LLMWIKI_CACHE=0|1 (in-process cache; default on for the server, off for --once/--selftest),
+     LLMWIKI_STRUCTURED=1 (also send structuredContent + outputSchema; default: text only)
 ```
 
 - **`--root` / `LLMWIKI_ROOT`** — `--root` wins. The path is `realpath`-normalized; `<root>/wiki` must exist, must be a real directory (not a symlink), and must resolve to exactly `<root>/wiki`. Otherwise the process prints one line to stderr and exits 2, e.g. `vault root required: pass --root <path> or set LLMWIKI_ROOT`.
@@ -333,7 +336,7 @@ Env: LLMWIKI_ROOT (vault path), LLMWIKI_DEBUG=1 (per-tool timings on stderr),
 | Budget | Value |
 |---|---|
 | Response text | 200 KB **UTF-8 bytes** (truncated on a codepoint boundary, marker `…[truncated at 200 KB]`, `truncated: true`) |
-| `wiki_pack` `structuredContent.pages` | same 200 KB budget — pages are dropped from the end, then relations, then claims |
+| `wiki_pack` `structuredContent.pages` (only with `LLMWIKI_STRUCTURED=1`) | same 200 KB budget — pages are dropped from the end, then relations, then claims |
 | Whole response envelope (text + JSON) | 200 KB; if it still does not fit after successive shrinking the call returns `isError` |
 | Frontmatter scalar | 4 KiB each |
 | `terms` | ≤10 items, ≤64 chars each |

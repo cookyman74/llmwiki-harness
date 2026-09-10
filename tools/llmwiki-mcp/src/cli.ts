@@ -39,7 +39,8 @@ Usage:
   llmwiki-mcp --once <search|expand|pack> <args…> --root <vault>   (same output as the Python scripts)
   llmwiki-mcp --version | --help
 Env: LLMWIKI_ROOT (vault path), LLMWIKI_DEBUG=1 (per-tool timings on stderr),
-     LLMWIKI_CACHE=0|1 (in-process cache; default on for the server, off for --once/--selftest)
+     LLMWIKI_CACHE=0|1 (in-process cache; default on for the server, off for --once/--selftest),
+     LLMWIKI_STRUCTURED=1 (also send structuredContent + outputSchema; default: text only)
 `;
 
 async function selftest(root: string, showRoot: boolean): Promise<string> {
@@ -114,7 +115,12 @@ async function main(argv: string[]): Promise<number> {
       process.stdout.write(await selftest(root, argv.includes("--show-root")));
       return 0;
     }
-    await startStdio({ root, version: version(), debug: process.env.LLMWIKI_DEBUG === "1" });
+    await startStdio({
+      root,
+      version: version(),
+      debug: process.env.LLMWIKI_DEBUG === "1",
+      structured: process.env.LLMWIKI_STRUCTURED === "1", // 기본 텍스트만(P4-27+)
+    });
     return -1; // 서버 모드: 종료하지 않음
   } catch (e) {
     if (e instanceof UsageError || e instanceof ArgError || e instanceof RootError || e instanceof PrintConfigError) {
