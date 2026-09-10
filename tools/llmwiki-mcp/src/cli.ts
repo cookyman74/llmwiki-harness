@@ -13,6 +13,7 @@
 import { readFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { setCacheDefault } from "./cache.js";
 import { buildGraph } from "./graph.js";
 import { ArgError, UsageError, parseArgs, runOnce } from "./once.js";
 import { CLIENTS, PrintConfigError, isClientName, printConfig } from "./print-config.js";
@@ -37,7 +38,8 @@ Usage:
         <c> = ${CLIENTS.join(" | ")}
   llmwiki-mcp --once <search|expand|pack> <args…> --root <vault>   (same output as the Python scripts)
   llmwiki-mcp --version | --help
-Env: LLMWIKI_ROOT (vault path), LLMWIKI_DEBUG=1 (per-tool timings on stderr)
+Env: LLMWIKI_ROOT (vault path), LLMWIKI_DEBUG=1 (per-tool timings on stderr),
+     LLMWIKI_CACHE=0|1 (in-process cache; default on for the server, off for --once/--selftest)
 `;
 
 async function selftest(root: string, showRoot: boolean): Promise<string> {
@@ -93,6 +95,7 @@ async function main(argv: string[]): Promise<number> {
         return 2;
       }
       // `--once <mode>` 앞뒤 인자를 모두 전달(agy 1차 MAJOR-1). root 는 서버와 같은 resolveRoot 를 거친다(codex 2차 #5).
+      setCacheDefault(false); // 1회성 실행 — 적중 기회 없이 stat 스캔만 더해진다(LLMWIKI_CACHE=1 로 강제 가능)
       const rest = [...argv.slice(0, onceAt), ...argv.slice(onceAt + 2)];
       const { opts, positional } = parseArgs(rest, { "--root": "root", "--top": "top", "--top-seed": "topSeed", "--max": "max", "--rerank": "rerank" });
       const root = await resolveRoot(opts.root);
@@ -107,6 +110,7 @@ async function main(argv: string[]): Promise<number> {
     if (positional.length) throw new ArgError(`unexpected argument: ${positional[0]} (see --help)`);
     const root = await resolveRoot(opts.root);
     if (argv.includes("--selftest")) {
+      setCacheDefault(false); // buildGraph_ms 가 v1 과 같은 의미(순수 구성 시간)를 유지하도록
       process.stdout.write(await selftest(root, argv.includes("--show-root")));
       return 0;
     }

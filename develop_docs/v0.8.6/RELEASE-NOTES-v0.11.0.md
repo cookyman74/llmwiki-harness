@@ -26,7 +26,7 @@ npx llmwiki-mcp print-config --client codex --root /path/to/llmwiki.obsidian   #
 
 | 항목 | 결과 |
 |---|---|
-| 단위 테스트 | 37파일 491건 통과 |
+| 단위 테스트 | 39파일 545건 통과 (P3 끝 `f098497` 에서 `npm run check` 실측, 2026-09-10 — 초안의 '37파일 491건' 은 P3 중간 집계였다) |
 | 패리티(픽스처 14질의 × 4모드) | FAIL 0 / GOLDEN DRIFT 0 |
 | 패리티(실볼트 5질의 × 4모드) | 0/20 FAIL, 3회 반복 digest 동일 |
 | 차등 퍼징 | 420/420 일치(seed 고정) |
@@ -69,4 +69,4 @@ macOS NFD 파일명과 NFC 질의가 어긋날 수 있다(Python 정본과 바�
 
 - `npm publish --access public` (조건 해소 + 승인 후) → `npx -y llmwiki-mcp@0.1.0` 재검증
 - `git tag v0.11.0`
-- P4: 프로세스 내 mtime 캐시(지연이 문제가 될 때만)
+- P4: 프로세스 내 mtime 캐시 — **구현 완료, 이 태그에는 포함되지 않는다**(브랜치 `feat/mcp-p4-lex-index`, 이 스택 위). v0.11.0·npm 0.1.0 은 P3 끝(`f098497` 계열)에서 끊고, 캐시는 다음 태그·npm 0.2.0 으로 나간다. P4 가 머지된 뒤에 0.1.0 을 publish 하면 캐시가 섞여 들어가므로 **publish 시점의 커밋을 확인할 것**(P4-11)

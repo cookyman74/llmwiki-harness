@@ -297,7 +297,8 @@ Usage:
         <c> = claude-code | codex | gemini | agy | cursor | windsurf | claude-desktop | vscode
   llmwiki-mcp --once <search|expand|pack> <args…> --root <vault>   (same output as the Python scripts)
   llmwiki-mcp --version | --help
-Env: LLMWIKI_ROOT (vault path), LLMWIKI_DEBUG=1 (per-tool timings on stderr), LLMWIKI_CACHE=0 (disable the in-process cache)
+Env: LLMWIKI_ROOT (vault path), LLMWIKI_DEBUG=1 (per-tool timings on stderr),
+     LLMWIKI_CACHE=0|1 (in-process cache; default on for the server, off for --once/--selftest)
 ```
 
 - **`--root` / `LLMWIKI_ROOT`** — `--root` wins. The path is `realpath`-normalized; `<root>/wiki` must exist, must be a real directory (not a symlink), and must resolve to exactly `<root>/wiki`. Otherwise the process prints one line to stderr and exits 2, e.g. `vault root required: pass --root <path> or set LLMWIKI_ROOT`.
@@ -321,7 +322,7 @@ Env: LLMWIKI_ROOT (vault path), LLMWIKI_DEBUG=1 (per-tool timings on stderr), LL
   Integer options follow Python's `int()` strictness — `--top 1.5` is an error, not `1`.
 - **`--version`, `--help`** — print and exit 0.
 - **`LLMWIKI_DEBUG=1`** — per-tool timings on stderr (`[llmwiki] wiki_pack 12ms`). Query terms, slugs, page contents, and the vault path are never logged. stdout stays reserved for JSON-RPC.
-- **`LLMWIKI_CACHE=0`** — turn the in-process cache off (see *Caching* below). Everything then runs the way it did before the cache existed: every call walks, reads and rebuilds. Use it to rule the cache out when results look wrong, or to compare outputs.
+- **`LLMWIKI_CACHE=0|1`** — force the in-process cache off or on. Unset, it is **on for the MCP server** (a long-lived process where it pays off) and **off for `--once` and `--selftest`** (one-shot processes never get a hit, so the cache would only add its `lstat` scan; `--selftest`'s `buildGraph_ms` keeps its original meaning). With `0`, every call walks, reads and rebuilds exactly as before the cache existed — use it to rule the cache out when results look wrong.
 
 ---
 

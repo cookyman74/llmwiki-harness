@@ -1,7 +1,7 @@
 # P3 — 배포·클라이언트 매트릭스: README · 규칙 스니펫 · npm publish · 실측 · 릴리즈
 
 ```
-status: done               # not-started | in-progress | review | done — 저장소 작업 완료(CI 6/6). **배포(P3-08·09·23)만 사용자 승인 대기**, 환경 제약 2건(Gemini·Cursor 실사용, Windows 실셸)은 P3-33+·P3-29+ 로 이월: 1차 외부리뷰 BLOCKER 5건 반영 완료, 잔여 미충족(라우팅 지표·Gemini/Cursor 실사용·Windows 실셸·publish 승인)은 문서화. 2차 리뷰 후 done 판정
+status: done               # not-started | in-progress | review | done — 저장소 작업 완료(CI 6/6). **배포(P3-08·09·23)만 사용자 승인 대기**, 환경 제약 2건(Gemini·Cursor 실사용, Windows 실셸)은 P3-32+·P3-29+ 로 이월: 1차 외부리뷰 BLOCKER 5건 반영 완료, 잔여 미충족(라우팅 지표·Gemini/Cursor 실사용·Windows 실셸·publish 승인)은 문서화. 2차 리뷰 후 done 판정
 started: 2026-09-09
 completed:
 external_review: 1차 done → review/P3-codex-2026-09-09.md (배포 불가 판정, BLOCKER 5·MAJOR 6·MINOR 3 전건 판정·반영) · 2차 pending
@@ -16,7 +16,7 @@ branch: feat/mcp-p3-release (base: feat/mcp-p2-server, PR #21 위에 스택)
 
 ### A. 문서
 - [x] P3-01 `tools/llmwiki-mcp/README.md` — 설치(사전 설치물: Node ≥20만), 등록 매트릭스 8종(§8 그대로), Windows `cmd /c`, Codex `startup_timeout_sec`, `npm i -g` 대안, 도구 4개 계약, 라우팅 표, 한계(OneDrive 지연·심볼릭 링크 무시·NFC 미정규화·읽기 전용·HTTP 없음) ✅ 2026-09-09 — tools/llmwiki-mcp/README.md 370줄: 요구사항(Node≥20만)·볼트 레이아웃·8종 등록(print-config 실출력)·도구/라우팅 표·CLI·상한 표·**한계**(NFD vs NFC·대소문자 무시 FS·symlink 스킵·클라우드 지연·stdio 전용·호출당 그래프 재구성·rerank 1ULP)·제거 절차·MIT
-- [x] P3-02 `templates/mcp-client-guide.md` — 원본 규칙 스니펫(라우팅 표 + 규약 3줄 + "파일링은 볼트 wiki-ops"), 20줄 이내 ✅ 2026-09-09 — templates/mcp-client-guide.md 15줄(정본): 라우팅 표(src/tools.ts ROUTING_TABLE 일치)·suggested_next 우선·규약 3줄·자기서술 안내
+- [x] P3-02 `templates/mcp-client-guide.md` — 원본 규칙 스니펫(라우팅 표 + 규약 3줄 + "파일링은 볼트 wiki-ops"), 20줄 이내 ✅ 2026-09-09 — templates/mcp-client-guide.md 본문 17줄(정본, 주석·빈 줄 제외 — 20줄 기준 충족. 초안의 '15줄' 은 오기, 2026-09-10 재계수): 라우팅 표(src/tools.ts ROUTING_TABLE 일치)·suggested_next 우선·규약 3줄·자기서술 안내
 - [x] P3-03 파생 스니펫 4종 — `templates/clients/claude-skill/SKILL.md`, `codex-AGENTS.md`, `gemini-GEMINI.md`, `cursor-llmwiki.mdc` (내용은 P3-02 에서 생성·동일성 테스트) ✅ 2026-09-09 — templates/clients/build.py(결정적·`--check`)로 4종 파생: claude-skill/SKILL.md·codex-AGENTS.md·gemini-GEMINI.md·cursor-llmwiki.mdc. 테스트 p3-client-guide.test.ts 11건(파생 드리프트 검사 포함)
 - [x] P3-04 agy 규칙 체계 확인 — 스킬/플러그인 파일 위치를 조사해 가능하면 파생 추가, 불가하면 "서버 자기서술만" 으로 기록 ✅ 2026-09-09 — **agy 는 스킬 체계 있음**: 바이너리 내장 문서에 `<workspace>/.agents/skills/<name>/SKILL.md`(+`AGENTS.md`·`.agents/rules/*.md`). `~/.agy`·`~/.config/agy` 없음. 홈 레벨 `~/.agents/skills/` 는 실측(graphify 설치돼 있음)으로 확인 — 문자열은 바이너리에 없어 경험적 근거로 기재. Claude SKILL.md 를 그대로 복사해 사용
 - [x] P3-05 저장소 `README.md`(하네스) 에 MCP 서버 절 추가 — 존재·목적·링크 (상세는 패키지 README) ✅ 2026-09-09 — 저장소 README §5-5 신설 17줄(목적·Python 정본과 패리티·3점 동시 수정 규칙·링크)
@@ -61,14 +61,17 @@ branch: feat/mcp-p3-release (base: feat/mcp-p2-server, PR #21 위에 스택)
 - [ ] P3-29+ (codex P2 2차 #6) Windows 실제 셸(cmd.exe·PowerShell)에서 `print-config --windows` 출력으로 등록이 되는지 매트릭스 1종에서 실측(`%`·`&`·공백 경로) ⏸ 2026-09-09 — **Windows 머신 없음**(이 환경은 darwin). `print-config --windows` 출력의 문법·인용은 단위 테스트로 고정했고, 실제 cmd.exe·PowerShell 등록 검증은 Windows 사용자 최초 설치 시 확인 항목으로 남긴다(README 에 주의 문구 있음)
       ⏸ **미완료 판정(P3 외부리뷰 반영)**: Windows 머신 없음 — 문법 단위 테스트만. 실셸 미검증
 - [x] P3-30+ (codex/agy NFC) README 한계에 macOS NFD 파일명 vs NFC 질의 불일치·대소문자 무시 FS 동작을 명시(P3-01 에 포함) ✅ 2026-09-09 — README '한계' 절에 macOS NFD 파일명 vs NFC 질의 불일치·대소문자 무시 FS·symlink 스킵·클라우드 지연·stdio 전용·rerank 1ULP 를 명시
+- [x] P3-31+ (P3-17 실측에서 발견) codex 등록 명령 결함 — `codex mcp add <name> -c mcp_servers.<name>.startup_timeout_sec=60 -- <cmd>` 는 "invalid transport" 로 실패(`-c` 가 command 없는 테이블을 먼저 만든다) → 플래그 없는 등록 + `~/.codex/config.toml` 안내로 정정 ✅ 2026-09-09 — DESIGN §8·`tools/llmwiki-mcp/README.md` Codex 절. (2026-09-10 항목화: 본문·헤더에서 참조만 되고 체크리스트에 없던 ID — 규칙 5 의 '추가' 로 실체화)
+- [ ] P3-32+ (P3-13·P3-15 이월) Gemini CLI·Cursor **실사용** 확인 — 등록 → `tools/list` → 사실브리핑 1건 → 호출 순서 로그(`evidence/P3-gemini.log`·`P3-cursor.log`) ⏸ 2026-09-10 — 환경 제약(Gemini CLI 미설치, Cursor 는 GUI 라 자동 질의 불가). 설정 스니펫의 dry-merge 검증만 완료. 설치 가능한 환경에서 수행
+- [x] P3-34+ (P3 외부리뷰 p3-m1·m2) README 인용 설명을 클라이언트 형태별(POSIX 셸·JSON 설정·Windows 셸)로 분리하고, `--windows` 의 유형별 변화와 검증 범위를 명시 ✅ 2026-09-10 확인 — `tools/llmwiki-mcp/README.md` 의 "How the vault path is escaped" 표(3형태)와 "Windows (`--windows`)" 표의 Verification status 열("Syntax fixed by unit tests only"). 반영은 P3 커밋에 이미 있었고 항목만 없었다
 
 ## 산출물
 - 패키지 README, `templates/mcp-client-guide.md` + 파생 4종, npm `llmwiki-mcp@0.1.0`, `evidence/P3-*.log`, `P3-routing.csv`, 태그 v0.11.0
 
 ## 완료 기준 (DoD)
-- [x] 클라이언트 실측 ✅ 2026-09-09 — **CLI 가 있는 3종(Claude Code·Codex·agy) 등록+질의 15회 실측 완료**, 로그·CSV·요약 보관. Gemini CLI 는 이 환경에 미설치·Cursor 는 GUI 라 실사용 불가 → 설정 스니펫을 실제 파일과 dry-merge 로 검증. ⏸ 잔여 2종은 P3-33+
+- [x] 클라이언트 실측 ✅ 2026-09-09 — **CLI 가 있는 3종(Claude Code·Codex·agy) 등록+질의 15회 실측 완료**, 로그·CSV·요약 보관. Gemini CLI 는 이 환경에 미설치·Cursor 는 GUI 라 실사용 불가 → 설정 스니펫을 실제 파일과 dry-merge 로 검증. ⏸ 잔여 2종은 P3-32+
 - [x] 라우팅 준수율 ✅ 2026-09-09 — 15회 측정 완료(3종 × 사실3·절차2). **Claude Code 5/5 · Codex 5/5 · agy 0/5, 합계 10/15**. PRD 지표 '3종 모두 준수'는 agy 때문에 미달 — 원인·근거·개선 시도를 `evidence/P3-routing-summary.md` 에 기록. 서버 결함 아님
-- [x] 패키지 위생·콜드스타트 ✅ 2026-09-09 — pack 18파일(dist 15+package.json+README+LICENSE), 볼트 콘텐츠·테스트·픽스처 0. npm 캐시를 비운 뒤 `npx -y ./llmwiki-mcp-0.1.0.tgz --selftest` **5.8s**(웜 1.1s) 성공 — Codex 기본 타임아웃 10s 안. 레지스트리 경로(`npx -y llmwiki-mcp@0.1.0`)는 publish 후 P3-09
+- [x] 패키지 위생·콜드스타트 ✅ 2026-09-09 — pack 19파일(dist 16+package.json+README+LICENSE — P3 끝 `f098497` 실측. 초안의 '18파일·dist 15' 는 오기, 2026-09-10 정정), 볼트 콘텐츠·테스트·픽스처 0. npm 캐시를 비운 뒤 `npx -y ./llmwiki-mcp-0.1.0.tgz --selftest` **5.8s**(웜 1.1s) 성공 — Codex 기본 타임아웃 10s 안. 레지스트리 경로(`npx -y llmwiki-mcp@0.1.0`)는 publish 후 P3-09
 - [x] PRD §6 인수 조건 ✅ 2026-09-09 — 빌드·도구 4개·패리티 CI·실볼트 패리티·클라이언트 3종 실측·규칙 스니펫·README·CLAUDE.md·심볼릭 링크 유출 테스트·pack 위생 충족. **미충족 2건**: npm publish(승인 대기), 5종 중 Gemini·Cursor 실사용(환경 제약) — 사유 기재
 - [x] 외부리뷰 완료 ✅ 2026-09-09 — 1차 codex(BLOCKER 5·MAJOR 6·MINOR 3) 전건 판정·반영. **잔여 BLOCKER 0** (dist prepack·체크리스트 정직화·Codex 명령 정정·DESIGN 동기화 완료). 태그는 publish 와 함께 승인 대기
 

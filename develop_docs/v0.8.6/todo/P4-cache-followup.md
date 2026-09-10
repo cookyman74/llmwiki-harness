@@ -36,7 +36,7 @@ branch: feat/mcp-p4-lex-index (base: feat/mcp-p3-release, PR #22 위에 스택) 
 - [x] P4-02 캐시 키 = 전 파일 `(relpath, mtimeMs, size)` 스냅샷. 호출 시 `readdir+stat` 스캔으로 변경 감지 ✅ 2026-09-10 — `src/cache.ts snapshot()`: `walkMd`(경계 검사 포함) 결과에 **`lstat`**(링크 미추적)을 병렬로 붙여 볼트 realpath + 파일별 `(경로, dev, ino, mode, size, mtimeNs, ctimeNs)` 를 이어붙인 키(외부리뷰 1차로 `(relpath, mtimeMs, size)` 에서 확장 — P4-19+). stat 실패·비정규 파일은 `?` 로 남아 **항상 미스**가 된다. 스캔 비용 실측 309p 5.2ms·1,000p 17.2ms
 - [x] P4-03 변경 파일만 재파싱, 그래프(인링크 포함)는 통째 재구성 — 부분 갱신 금지(정확성 우선) ✅ 2026-09-10 — `readTexts()` 가 **안정 스냅샷에서 신원(`FileId`)이 같은** 파일의 본문만 재사용하고(불안정 스냅샷이면 전량 재독 — 2차 반영) 나머지는 `read()`(O_NOFOLLOW 유지). 그래프는 `assemble()` 로 **통째 재구성** — 링크 정규화·인링크는 부분 갱신하지 않는다. 누적 바이트 예산(`MAX_TOTAL_BYTES`)은 **캐시 적중분까지 세어** 캐시 유무로 상한 판정이 달라지지 않게 했다
 - [x] P4-04 캐시 무효화 조건 — 파일 추가·삭제·mtime·size 변화, `--root` 변경. 캐시 크기 상한(페이지 수 기준) 없음, 프로세스 종료 시 소멸(디스크 캐시 없음) ✅ 2026-09-10 — 추가·삭제는 키의 파일 목록이 달라져 미스(삭제 파일 텍스트는 `c.texts` 대입 교체로 함께 사라짐), `--root` 는 root 별 캐시(`Map`, 최대 4개, LRU — 1·2차 반영)라 전환해도 서로 섞이지 않는다. 디스크 캐시 없음. **추가 규칙**: 스냅샷에 `[-5s, 2s)` 창 안 수정 파일이 있으면 '불안정' — 저장도 기존 캐시 사용도 하지 않는다(1·2차 반영) — FAT/exFAT·클라우드 동기 폴더의 타임스탬프 해상도 안에서 크기까지 같은 수정은 스냅샷으로 구분할 수 없기 때문. 파생 메모는 누적 128MiB(`DERIVED_BUDGET_BYTES`) 상한
-- [x] P4-05 `LLMWIKI_CACHE=0` 으로 끌 수 있음(패리티·디버그) ✅ 2026-09-10 — 끄면 stat 스캔조차 하지 않고 v1 경로(`readAll`)로 간다. 파생 메모도 저장하지 않는다. README(Env 줄·CLI 절·한계)와 DESIGN §6 에 기재
+- [x] P4-05 `LLMWIKI_CACHE=0` 으로 끌 수 있음(패리티·디버그) ✅ 2026-09-10 — 끄면 stat 스캔조차 하지 않고 v1 경로(`readAll`)로 간다. 파생 메모도 저장하지 않는다. README(Env 줄·CLI 절·한계)와 DESIGN §6 에 기재 · **배선 점검(2026-09-10)**: 미지정 시 서버는 on·`--once`/`--selftest` 는 off, `=1` 로 강제 on 추가(P4-25+)
 
 ### C. 구현·테스트
 - [x] P4-06 `src/cache.ts` 구현, `buildGraph` 앞단에 투명 삽입 ✅ 2026-09-10 — `buildGraph` 는 `walkMd` → `snapshot` → 적중 시 **같은 Graph 객체** 반환, 미스 시 `assemble()`. `search.ts filesMode` 도 같은 텍스트 캐시를 쓴다. 호출부(`once.ts`·`read.ts`·`cli.ts`·`tools.ts`)는 **무변경** — 캐시는 전적으로 투명하다
@@ -60,6 +60,14 @@ branch: feat/mcp-p4-lex-index (base: feat/mcp-p3-release, PR #22 위에 스택) 
 - [x] P4-22+ (외부리뷰 1차 반영) 측정 하네스 정정 — `stage-bench` 는 캐시 off 강제, `cache-bench` 는 **정확히 2회차** 측정·표준 median ✅ 2026-09-10 — agy M3·codex M5. 재측정: 309p 48.4→9.2ms · 1,000p 195.4→26.4ms · 2,000p 379.5→48.9ms
 - [x] P4-23+ (외부리뷰 2차 반영) 불안정 스냅샷의 적중·재사용 금지, 텍스트 예산 초과 시 그래프 미저장, 파생 예산을 전 root 합으로, root LRU, Windows ctime 서술 정정 ✅ 2026-09-10 — codex r2 B1·B3·M1·M3·m1·m2. 회귀 5건 추가(p4-cache 21건). 재검증: 41파일 572건 · 픽스처 0/56(on·off) · 퍼징 200/200 · 실볼트 0/20(on·off) digest `9bcb72a0a91edc08` 불변 · 1,000p 정확히 2회차 24.5ms
 - [x] P4-24+ (외부리뷰 3차 반영) 누적 상한 즉시 판정, 전 root 텍스트 합 상한(LRU 축출), 스냅샷 lstat 동시성 풀, 축출 시 참조 해제 ✅ 2026-09-10 — codex r3 M1·M2·m3·m4 / agy r3 m1·m2. 회귀 4건 추가(p4-cache 25건). 재검증: 41파일 576건 · 픽스처 0/56(on·off) · 퍼징 200/200 · 실볼트 0/20(on·off) digest `9bcb72a0a91edc08` 불변 · 1,000p 정확히 2회차 26.6ms · pack 20파일(dist/cache.js 추가분)
+- [x] P4-25+ (배선 점검 — 사용자 요청 "배선도 누락 재검토") 캐시·P4 변경이 코드·CLI·서버·CI·문서·릴리즈 계획에 빠짐없이 연결됐는지 소스로 전수 확인하고 누락을 고쳤다 ✅ 2026-09-10
+      ↳ **① CI 읽기 전용 가드 실패(실제 결함)** — `src/cache.ts` 가 `import fs from "node:fs/promises"`(default import, 가드가 금지)였다. P4 브랜치를 한 번도 푸시하지 않아 CI 가 돌지 않았고 가드는 `ci.yml` heredoc 에만 있어 로컬 `npm run check` 로는 잡히지 않았다 → `import { promises as fs } from "node:fs"`(vault.ts 와 동일)로 수정. **재발 방지**: 가드 본문을 `tools/llmwiki-mcp/scripts/readonly-guard.py` 로 옮기고 CI 는 그 파일을 호출(규칙 무변경) — 로컬에서 `python3 scripts/readonly-guard.py` 로 같은 판정. P0~P3 교훈 1("문자열 리뷰는 실행을 대신 못 한다")의 CI 판: **CI 전용 검사는 로컬에서 돌릴 수 있어야 한다**
+      ↳ **② 1회성 모드에 캐시가 순수 비용으로 배선됨** — `--once`·`--selftest` 는 프로세스당 1회 호출이라 적중 기회가 없는데 stat 스캔만 더해져 1,000p cold 가 off 대비 +7.7%(164.3→176.9ms)였고, `--selftest` 의 `buildGraph_ms`(P4-18+ 감시 지표·Codex 타임아웃 근거) 의미가 조용히 바뀌었다 → `setCacheDefault(false)` 를 cli 의 두 분기에 배선, `LLMWIKI_CACHE=1` 로 강제 on 가능. 서버 기본값은 on 그대로. CI 패리티 ON 단계는 `LLMWIKI_CACHE=1` 을 명시해 캐시 경로 커버리지를 유지. 실측: `--selftest` buildGraph_ms 25ms(v1 의미 복원)
+      ↳ **③ `--help` 와 README 불일치** — README 의 help 블록에만 `LLMWIKI_CACHE` 가 있고 실제 `cli.ts` HELP 에는 없었다 → HELP 에 추가, `--help` 출력을 검사하는 테스트 추가
+      ↳ **④ 문서 배선** — PRD §4("캐시는 v1 에서 안 함")·위험 표에 P4 구현 사실과 버전 경계 주석, 릴리즈 노트(v0.11.0)에 "P4 캐시는 이 태그에 포함되지 않음·publish 시점 커밋 확인" 명시, 릴리즈 노트 단위 테스트 수를 P3 끝 실측값(39파일 545건)으로 정정
+      ↳ **⑤ P3 체크리스트 배선(첫 리뷰에서 지적했던 누락)** — 본문·헤더가 참조만 하던 P3-31+·P3-32+·P3-34+ 를 실체화(31+·34+ 는 반영 근거 확인 후 `[x]`, 32+ 는 환경 제약 `[ ] ⏸`), 헤더의 P3-33+ 를 본문과 같은 P3-32+ 로 통일, DoD pack 수(18→19)·P3-02 줄 수(15→17) 오기 정정
+      ↳ 확인했으나 문제없음: 호출부 5곳(`once.ts` expand·`read.ts` read_page·`cli.ts` selftest·`search.ts`·`server.ts` 경유) 모두 `buildGraph`/`readTexts` 를 거침, `pack.ts` 는 선택 페이지만 `read()`(캐시 불필요), pack 가드 20파일·금지 경로 0, `dump-tools-list --check`·`templates/clients/build.py --check` 드리프트 0, eslint `test/perf/*.mjs` 블록 존재
+      ↳ 재검증: 42파일 580건 · 가드 OK · 패리티 기본/`=1`/`=0` 전부 0/56 · 퍼징 200/200 · 실볼트 기본·`=1` 0/20 digest `9bcb72a0a91edc08` · `bench.py` selftest 파싱 정상
 - [ ] P4-11 npm `0.2.0` publish, README 성능 절 갱신, `CLAUDE.md` 변경 이력 행 — **선행: P3-08 의 `0.1.0` publish**(승인 대기). 0.1.0 이 나가기 전에는 0.2.0 을 논하지 않는다 ⏸ 2026-09-10 — **문서 몫은 선반영**: README(Env 줄·`LLMWIKI_CACHE` 설명·한계 2줄 교체)·DESIGN §6·`CLAUDE.md` 이력 행 완료. 남은 것은 publish 뿐이며 P3-08 승인에 막혀 있다
 - [x] P4-17+ (P4-12+ 몫) `CLAUDE.md` 변경 이력 행 추가 — 패키지 배포 없이 저장소에만 반영되는 변경이므로 P4-11 과 분리해 지금 기록 ✅ 2026-09-10
 
@@ -69,7 +77,7 @@ branch: feat/mcp-p4-lex-index (base: feat/mcp-p3-release, PR #22 위에 스택) 
 - (2026-09-10 실제 산출) **이월분**: `src/expand.ts`(`lexIndex`)·`src/once.ts`, `test/unit/p4-12-lex-index.test.ts`, `test/perf/stage-bench.mjs`, `todo/baseline/P4-trigger.txt`·`P4-perf.txt`
 
 ## 완료 기준 (DoD)
-- [x] 캐시 on/off 패리티 전건 동일 ✅ 2026-09-10 — 픽스처 56 on/off · 퍼징 200 on/off · 실볼트 20 on/off, digest 전부 `9bcb72a0a91edc08`. 단위 41파일 576건 통과(3차 반영 후)
+- [x] 캐시 on/off 패리티 전건 동일 ✅ 2026-09-10 — 픽스처 56 on/off · 퍼징 200 on/off · 실볼트 20 on/off, digest 전부 `9bcb72a0a91edc08`. 단위 42파일 580건 통과(배선 점검 후)
 - [x] 성능 목표 달성 기록 ✅ 2026-09-10 — 1,000p 정확히 2회차 **26.6ms**(목표 <100ms, 3차 반영 후 재측정), stat 스캔 비용까지 `todo/baseline/P4-perf.txt` 에 기록
 - [x] 외부리뷰 완료 ✅ 2026-09-10 — 3라운드: 1차 codex·agy(BLOCKER 4) → 2차 codex(BLOCKER 3, agy 는 CLI 인증 오류로 미수행) → **3차 codex·agy 모두 잔여 BLOCKER 0**(agy '병합 가능'). 3차 MAJOR 2·MINOR 4 는 00-README 5항대로 같은 단계 안에서 반영·재검증
 - [x] (이월분) P4-12+ 출력 무변경 완료 ✅ 2026-09-10 — 픽스처 패리티·퍼징 2 seed·실볼트 digest 동일·단위 551건, 세 볼트에서 `identical_output=true`

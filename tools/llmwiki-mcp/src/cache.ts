@@ -19,7 +19,8 @@
  *     불안정한 스냅샷은 **저장하지 않을 뿐 아니라 기존 캐시도 쓰지 않는다** — 그래프 적중도, 파일별
  *     텍스트 재사용도 금지하고 전량 다시 읽는다(codex 2차 BLOCKER-1: 저장만 막고 적중은 허용하던 구멍).
  *     더 미래인 mtime 은 시계 차이로 보고 막지 않는다(agy 1차 BLOCKER-1: 막으면 캐시가 영구 무력화).
- *  5. `LLMWIKI_CACHE=0` 이면 전 경로가 꺼진다(P4-05). 패리티·디버그용.
+ *  5. `LLMWIKI_CACHE=0` 이면 전 경로가 꺼지고 `=1` 이면 켠다(P4-05). 미지정이면 서버는 켜고 `--once`·`--selftest`
+ *     는 끈다(`setCacheDefault` — 1회성 프로세스에서는 순수 비용).
  *
  * 파생값(P4-13+): lex haystack·bm25 `scoreText`·`dl` 은 **term 과 무관**해서 호출 사이에 재사용할 수
  * 있다. **저장된 그래프의 노드**에만 WeakMap 으로 매단다(그래프 세대 번호로 확인). 예산은 살아 있는
@@ -29,7 +30,7 @@
  * 메모리: 텍스트 예산을 넘는 스냅샷은 **그래프도 저장하지 않는다**(그래프가 본문 문자열을 쥐고 있어 텍스트
  * 상한을 우회하던 구멍 — codex 2차 MAJOR-1). root 는 최대 `MAX_ROOTS` 개, LRU. 디스크 캐시는 없다.
  */
-import fs from "node:fs/promises";
+import { promises as fs } from "node:fs"; // 읽기 전용 가드 허용 형식(vault.ts 와 동일) — default import 는 CI 가 거부
 import path from "node:path";
 import type { Graph, Node } from "./graph.js";
 import { MAX_FILE_BYTES, MAX_TOTAL_BYTES, VaultLimitError, read, type MdFile } from "./vault.js";
@@ -65,8 +66,22 @@ export function setCacheBudgetsForTest(b: { text?: number; totalText?: number; d
   maxTotal = b?.maxTotal ?? MAX_TOTAL_BYTES;
 }
 
+let defaultOn = true;
+
+/**
+ * 캐시 기본값. 서버(장수 프로세스)는 켜고, 1회성 실행(`--once`·`--selftest`)은 cli 가 끈다 — 한 번 쓰고
+ * 끝나는 프로세스에서는 적중할 기회가 없고 stat 스캔 비용만 더해진다(1,000p 에서 cold +7.7%, 배선 점검).
+ * `LLMWIKI_CACHE` 가 명시되면(`0`/`1`) 그게 항상 우선한다.
+ */
+export function setCacheDefault(on: boolean): void {
+  defaultOn = on;
+}
+
 export function cacheEnabled(): boolean {
-  return process.env.LLMWIKI_CACHE !== "0";
+  const v = process.env.LLMWIKI_CACHE;
+  if (v === "0") return false;
+  if (v === "1") return true;
+  return defaultOn;
 }
 
 /** 파일 하나의 신원 — 하나라도 다르면 그 파일은 다시 읽는다. 큰 수는 문자열로 담아 정밀도를 잃지 않는다. */
