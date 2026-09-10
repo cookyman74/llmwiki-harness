@@ -1,0 +1,25 @@
+너는 외부 감사자다. llmwiki MCP 서버(Node.js 포팅) 프로젝트의 P1(리트리벌 포팅) 단계 산출물을 비판적으로 리뷰하라. 저장소는 현재 디렉터리(llmwiki-harness), 브랜치 feat/mcp-p1-port.
+
+먼저 읽을 것(맥락):
+- develop_docs/v0.8.6/todo/00-README.md, develop_docs/v0.8.6/todo/P1-port-retrieval.md (체크리스트·DoD)
+- develop_docs/v0.8.6/DESIGN.md §4(포팅 대응표 #1~#21, #17b), §7(패리티)
+- 정본(포팅 원본): .claude/skills/wiki-lint/scripts/scope-expand.py, search.py — **반드시 전문을 읽고 TS와 줄 단위로 대조하라**
+
+리뷰 대상:
+1. TS 포팅 — tools/llmwiki-mcp/src/{vault,graph,search,expand,bm25,pack,format,once,cli}.ts
+   기준: 대응표 각 행이 정확히 구현됐는가? Python 의미와 갈리는 지점(정규식 `\s`·`\w`·`.`, str.strip/lower/count/len, 정렬 키·안정성, dict 대입 vs setdefault, set 순회 의존, 부동소수점 연산 순서, `[:n]` 슬라이스, 빈 입력·경계)을 코드에서 찾아라. 픽스처·실볼트에서 우연히 통과하지만 다른 입력에서 갈릴 수 있는 곳을 특히 찍어라.
+2. 단위 테스트 — tools/llmwiki-mcp/test/unit/*.test.ts
+   기준: 대응표 21행+#17b 각각에 대응 케이스가 있는가? 기대값이 Python 실행으로 검증됐는가(주석의 Python 식)? 통과하도록 약화된 단언은?
+3. 패리티 — tests/parity.py, .github/workflows/ci.yml(parity 잡·pack 가드)
+   기준: "바이트 동일"이 실제로 비교되는가(디코딩 후 비교면 감점)? rerank 허용오차(±0.05)가 순서·slug·type 정확 일치를 함께 요구하는가? GOLDEN DRIFT 검출이 있는가? 병렬 실행이 결정적 출력을 내는가? Windows(경로·인코딩·pwsh)에서 깨질 곳은? 픽스처 골든셋(56)·실볼트(20, 로컬 기록 develop_docs/v0.8.6/todo/baseline/P1-parity.txt·P1-parity-vault.txt) 결과가 지표를 입증하는가?
+4. 보안·패키징 — walkMd 의 symlink 스킵, npm pack 가드, 실볼트 근거 파일의 gitignore
+5. 성능 — 실볼트 ≈315페이지에서 호출당 62ms(측정)·설계 목표 <1s. 병목·불필요한 재계산(예: lexScore 가 lexicalSeeds 와 expand 에서 두 번)이 있는가? 1,000페이지에서의 예상은?
+6. 체크리스트 무결성 — P1-port-retrieval.md 의 `[x]` 항목이 산출물로 뒷받침되는가? 근거 없이 체크된 항목을 찍어내라.
+
+출력 형식(한국어): 발견 사항을 심각도별로 나열한다.
+- [BLOCKER] 다음 단계(P2) 진입 전 반드시 고쳐야 함
+- [MAJOR] 설계 결함, 고치지 않으면 후회
+- [MINOR] 개선 제안
+각 항목: 위치(파일·줄) / 문제 / 근거(Python 줄과 TS 줄을 함께 인용, 가능하면 갈리는 입력 예시) / 제안. 마지막에 "총평(P2 진입 가능 여부)" 한 단락. 칭찬은 생략하고 문제만 적어라.
+
+제약: 어떤 파일도 생성·수정·삭제하지 마라. 읽기와 분석(쓰기 없는 명령 실행 — 예: python3 -c, node -e, npm test — 은 허용)만 수행하고 결과는 응답 텍스트로만 출력하라. 실 볼트 경로(OneDrive)는 열지 마라.
