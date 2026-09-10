@@ -6,6 +6,8 @@ A read-only [MCP](https://modelcontextprotocol.io) server over an Obsidian **LLM
 
 ---
 
+> **Package vs. command name.** The npm package is **`obsidian-llmwiki-mcp`**; the command it installs is **`llmwiki-mcp`**. `npx -y obsidian-llmwiki-mcp …` runs that command directly (the package has a single bin). After `npm i -g obsidian-llmwiki-mcp` you call `llmwiki-mcp …`.
+
 ## Requirements
 
 | | |
@@ -52,7 +54,7 @@ Body text is decoded as UTF-8 with a BOM stripped, invalid bytes replaced, and `
 Nothing to install ahead of time — `npx` fetches the package on first launch. Generate the exact snippet for your client:
 
 ```bash
-npx llmwiki-mcp print-config --client <claude-code|codex|agy|gemini|cursor|windsurf|claude-desktop|vscode> \
+npx obsidian-llmwiki-mcp print-config --client <claude-code|codex|agy|gemini|cursor|windsurf|claude-desktop|vscode> \
   --root "<VAULT>"
 ```
 
@@ -71,7 +73,7 @@ Below is the real output for each client, with your vault path written as `<VAUL
 
 ```
 # Claude Code — 사용자 범위(모든 프로젝트에서 보임)
-claude mcp add --scope user llmwiki -- npx -y llmwiki-mcp --root <VAULT>
+claude mcp add --scope user llmwiki -- npx -y obsidian-llmwiki-mcp --root <VAULT>
 ```
 
 ### Codex CLI
@@ -80,12 +82,12 @@ claude mcp add --scope user llmwiki -- npx -y llmwiki-mcp --root <VAULT>
 
 ```
 # Codex CLI (0.153 실측)
-codex mcp add llmwiki -- npx -y llmwiki-mcp --root <VAULT>
+codex mcp add llmwiki -- npx -y obsidian-llmwiki-mcp --root <VAULT>
 # npx 콜드스타트가 기본 기동 타임아웃(10s)을 넘으면 ~/.codex/config.toml 에 startup_timeout_sec 을 추가한다
 # (`codex mcp add` 의 -c 플래그로는 지정할 수 없다 — command 없는 테이블이 먼저 만들어져 "invalid transport" 로 실패)
 [mcp_servers.llmwiki]
 command = "npx"
-args = ["-y", "llmwiki-mcp", "--root", "<VAULT>"]
+args = ["-y", "obsidian-llmwiki-mcp", "--root", "<VAULT>"]
 startup_timeout_sec = 60
 ```
 
@@ -93,7 +95,7 @@ startup_timeout_sec = 60
 
 ```
 # agy — 플래그는 name 앞, '-'로 시작하는 인자 앞에 '--'
-agy mcp add llmwiki -- npx -y llmwiki-mcp --root <VAULT>
+agy mcp add llmwiki -- npx -y obsidian-llmwiki-mcp --root <VAULT>
 ```
 
 ### Gemini CLI
@@ -172,7 +174,7 @@ Add `--windows` to any of the above. Two things change: the command is wrapped i
 ```
 # Claude Code (Windows) — 경로는 env 로 전달
 # (cmd.exe 는 큰따옴표 안에서도 %VAR% 를 확장하고 지연 확장 세션은 !VAR! 도 확장한다 — '%'·'!' 가 든 경로는 CLI 형 대신 JSON 설정형(env)을 쓰라. PowerShell 이면 값을 작은따옴표 '…' 로 감싸라)
-claude mcp add --scope user --env LLMWIKI_ROOT=<VAULT> llmwiki -- cmd /c npx -y llmwiki-mcp
+claude mcp add --scope user --env LLMWIKI_ROOT=<VAULT> llmwiki -- cmd /c npx -y obsidian-llmwiki-mcp
 ```
 
 ```json
@@ -208,8 +210,8 @@ Use a JSON-config client (`cursor`, `windsurf`, `claude-desktop`, `gemini`, `vsc
 To avoid `npx` cold start altogether:
 
 ```bash
-npm i -g llmwiki-mcp
-npx llmwiki-mcp print-config --client claude-code --root "<VAULT>" --global
+npm i -g obsidian-llmwiki-mcp
+npx obsidian-llmwiki-mcp print-config --client claude-code --root "<VAULT>" --global
 ```
 
 ```
@@ -222,7 +224,7 @@ JSON-config clients become `"command": "llmwiki-mcp", "args": []` with the path 
 ### Verify
 
 ```bash
-npx llmwiki-mcp --selftest --root "<VAULT>"
+npx obsidian-llmwiki-mcp --selftest --root "<VAULT>"
 ```
 
 ```
@@ -383,7 +385,7 @@ Exceeding a vault or pack limit raises a named error rather than silently return
 | Claude Desktop | delete the `llmwiki` entry from `claude_desktop_config.json` |
 | VS Code | delete the `llmwiki` entry from `.vscode/mcp.json` |
 
-If you installed globally, also `npm rm -g llmwiki-mcp`. Removing the server changes nothing in the vault — it never wrote anything, and the vault's own Python tooling is independent of it.
+If you installed globally, also `npm rm -g obsidian-llmwiki-mcp`. Removing the server changes nothing in the vault — it never wrote anything, and the vault's own Python tooling is independent of it.
 
 ---
 

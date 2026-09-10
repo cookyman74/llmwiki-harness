@@ -8,7 +8,7 @@ const pkg = JSON.parse(readFileSync(join(here, "..", "..", "package.json"), "utf
 
 describe("package scaffold", () => {
   it("has the expected name and version", () => {
-    expect(pkg.name).toBe("llmwiki-mcp");
+    expect(pkg.name).toBe("obsidian-llmwiki-mcp"); // npm 유사도 정책으로 원안 llmwiki-mcp 거부(2026-09-11) — bin 은 llmwiki-mcp 유지
     expect(pkg.version).toBe("0.1.0");
   });
   it("is an ESM package exposing the llmwiki-mcp bin", () => {

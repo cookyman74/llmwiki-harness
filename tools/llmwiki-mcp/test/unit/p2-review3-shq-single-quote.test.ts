@@ -53,7 +53,7 @@ const SAMPLES = [
 
 describe("3차 MINOR-7: shq 는 작은따옴표로 인용한다", () => {
   it("안전 토큰은 인용하지 않는다 — 안전 집합은 [A-Za-z0-9_./:=+-]", () => {
-    for (const s of ["npx", "-y", "llmwiki-mcp", "/opt/vault_1.2", "mcp_servers.llmwiki.startup_timeout_sec=60", "a:b+c", "A/b-c_d.e:f=g+h"]) {
+    for (const s of ["npx", "-y", "obsidian-llmwiki-mcp", "/opt/vault_1.2", "mcp_servers.llmwiki.startup_timeout_sec=60", "a:b+c", "A/b-c_d.e:f=g+h"]) {
       expect(shq(s), s).toBe(s);
     }
   });

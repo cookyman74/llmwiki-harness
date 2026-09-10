@@ -175,7 +175,7 @@ describe("P2-27 CLI --help / --version / exit codes", () => {
     const r = run(["print-config", "--client", "claude-code", "--root", "/nonexistent/vault"]);
     expect(r.status).toBe(0);
     expect(r.stderr).toBe("");
-    expect(r.stdout).toContain("claude mcp add --scope user llmwiki -- npx -y llmwiki-mcp --root /nonexistent/vault");
+    expect(r.stdout).toContain("claude mcp add --scope user llmwiki -- npx -y obsidian-llmwiki-mcp --root /nonexistent/vault");
   });
 
   it("P2-27 알 수 없는 위치 인자 → exit 2", () => {

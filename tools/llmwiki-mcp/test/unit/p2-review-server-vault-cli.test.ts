@@ -204,7 +204,7 @@ describe("review: CLI argv order", () => {
     const w = run(["--windows", "--client", "claude-code", "print-config", "--root", "C:\\wiki\\safe&whoami"]);
     expect(w.status, w.stderr).toBe(0);
     expect(w.stdout).not.toContain("--root");
-    expect(w.stdout).toContain(" -- cmd /c npx -y llmwiki-mcp\n");
+    expect(w.stdout).toContain(" -- cmd /c npx -y obsidian-llmwiki-mcp\n");
     expect(w.stdout).toContain('--env "LLMWIKI_ROOT=C:\\wiki\\safe&whoami" llmwiki -- ');
   });
 
