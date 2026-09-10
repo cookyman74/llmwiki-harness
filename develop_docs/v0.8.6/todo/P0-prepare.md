@@ -16,6 +16,7 @@ external_review: done → review/P0-agy-2026-09-09.md (BLOCKER 0 · MAJOR 2 · M
 
 ### A. 결정 확정
 - [x] P0-01 npm 패키지 이름 확정 — 기본 `llmwiki-mcp` (`npm view llmwiki-mcp` 로 미등록 재확인, 날짜 기록) ✅ 2026-09-09 — `npm view llmwiki-mcp version` 미등록 확인, DESIGN §10 기록
+      ↳ **2026-09-11 변경**: publish 시 npm 이 `llmwiki-mcp` 를 기존 패키지 `llm-wiki-mcp`(v0.2.0)와 너무 비슷하다며 403 으로 거부(구두점 제거 시 동일) → 사용자 결정으로 **`obsidian-llmwiki-mcp`** 로 변경. 실행 명령(bin)은 `llmwiki-mcp` 유지
 - [x] P0-02 `--once` CLI 모드 포함 확정 (패리티·디버그용, 설계서 §3.5) ✅ 2026-09-09 — DESIGN §10
 - [x] P0-03 Python 디렉터리 순회 정렬 수정 포함 확정 (§7) ✅ 2026-09-09 — DESIGN §10
 - [x] P0-04 `wiki_read_page` 전문 상한 200KB 절단 확정 ✅ 2026-09-09 — DESIGN §10

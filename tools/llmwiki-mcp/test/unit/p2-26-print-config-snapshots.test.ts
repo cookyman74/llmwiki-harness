@@ -22,7 +22,7 @@ const RQ = `'${ROOT}'`; // POSIX 셸 인용형 — 작은따옴표(shq; 3차 리
 const RJ = `"/Users/x y/OneDrive-개인/llmwiki.obsidian"`; // JSON 직렬화(한글 이스케이프 없음)
 const ENVQ = `"LLMWIKI_ROOT=${ROOT}"`; // Windows CLI 형: cmdq(`LLMWIKI_ROOT=<root>`) — 공백·한글·`/` 가 있어 인용, `%`·`"` 없음
 const WIN_NOTE = "# (cmd.exe 는 큰따옴표 안에서도 %VAR% 를 확장하고 지연 확장 세션은 !VAR! 도 확장한다 — '%'·'!' 가 든 경로는 CLI 형 대신 JSON 설정형(env)을 쓰라. PowerShell 이면 값을 작은따옴표 '…' 로 감싸라)\n";
-const CMDW = "cmd /c npx -y llmwiki-mcp";
+const CMDW = "cmd /c npx -y obsidian-llmwiki-mcp";
 
 type Variant = "default" | "windows" | "global";
 const VARIANTS: Variant[] = ["default", "windows", "global"];
@@ -31,27 +31,27 @@ const opts = (client: ClientName, v: Variant) => ({ client, root: ROOT, windows:
 // prettier-ignore
 const EXPECTED: Record<ClientName, Record<Variant, string>> = {
   "claude-code": {
-    default: `# Claude Code — 사용자 범위(모든 프로젝트에서 보임)\nclaude mcp add --scope user llmwiki -- npx -y llmwiki-mcp --root ${RQ}\n`,
+    default: `# Claude Code — 사용자 범위(모든 프로젝트에서 보임)\nclaude mcp add --scope user llmwiki -- npx -y obsidian-llmwiki-mcp --root ${RQ}\n`,
     windows: `# Claude Code (Windows) — 경로는 env 로 전달\n${WIN_NOTE}claude mcp add --scope user --env ${ENVQ} llmwiki -- ${CMDW}\n`,
     global: `# Claude Code — 사용자 범위(모든 프로젝트에서 보임)\nclaude mcp add --scope user llmwiki -- llmwiki-mcp --root ${RQ}\n`,
   },
   codex: {
-    default: `# Codex CLI (0.153 실측)\ncodex mcp add llmwiki -- npx -y llmwiki-mcp --root '${ROOT}'\n# npx 콜드스타트가 기본 기동 타임아웃(10s)을 넘으면 ~/.codex/config.toml 에 startup_timeout_sec 을 추가한다\n# (\`codex mcp add\` 의 -c 플래그로는 지정할 수 없다 — command 없는 테이블이 먼저 만들어져 "invalid transport" 로 실패)\n[mcp_servers.llmwiki]\ncommand = "npx"\nargs = ["-y", "llmwiki-mcp", "--root", "${ROOT}"]\nstartup_timeout_sec = 60\n`,
-    windows: `# Codex CLI (0.153 실측)\n# (cmd.exe 는 큰따옴표 안에서도 %VAR% 를 확장하고 지연 확장 세션은 !VAR! 도 확장한다 — '%'·'!' 가 든 경로는 CLI 형 대신 JSON 설정형(env)을 쓰라. PowerShell 이면 값을 작은따옴표 '…' 로 감싸라)\ncodex mcp add llmwiki --env "LLMWIKI_ROOT=${ROOT}" -- cmd /c npx -y llmwiki-mcp\n# npx 콜드스타트가 기본 기동 타임아웃(10s)을 넘으면 ~/.codex/config.toml 에 startup_timeout_sec 을 추가한다\n# (\`codex mcp add\` 의 -c 플래그로는 지정할 수 없다 — command 없는 테이블이 먼저 만들어져 "invalid transport" 로 실패)\n[mcp_servers.llmwiki]\ncommand = "cmd"\nargs = ["/c", "npx", "-y", "llmwiki-mcp"]\nstartup_timeout_sec = 60\n\n[mcp_servers.llmwiki.env]\nLLMWIKI_ROOT = "${ROOT}"\n`,
+    default: `# Codex CLI (0.153 실측)\ncodex mcp add llmwiki -- npx -y obsidian-llmwiki-mcp --root '${ROOT}'\n# npx 콜드스타트가 기본 기동 타임아웃(10s)을 넘으면 ~/.codex/config.toml 에 startup_timeout_sec 을 추가한다\n# (\`codex mcp add\` 의 -c 플래그로는 지정할 수 없다 — command 없는 테이블이 먼저 만들어져 "invalid transport" 로 실패)\n[mcp_servers.llmwiki]\ncommand = "npx"\nargs = ["-y", "obsidian-llmwiki-mcp", "--root", "${ROOT}"]\nstartup_timeout_sec = 60\n`,
+    windows: `# Codex CLI (0.153 실측)\n# (cmd.exe 는 큰따옴표 안에서도 %VAR% 를 확장하고 지연 확장 세션은 !VAR! 도 확장한다 — '%'·'!' 가 든 경로는 CLI 형 대신 JSON 설정형(env)을 쓰라. PowerShell 이면 값을 작은따옴표 '…' 로 감싸라)\ncodex mcp add llmwiki --env "LLMWIKI_ROOT=${ROOT}" -- cmd /c npx -y obsidian-llmwiki-mcp\n# npx 콜드스타트가 기본 기동 타임아웃(10s)을 넘으면 ~/.codex/config.toml 에 startup_timeout_sec 을 추가한다\n# (\`codex mcp add\` 의 -c 플래그로는 지정할 수 없다 — command 없는 테이블이 먼저 만들어져 "invalid transport" 로 실패)\n[mcp_servers.llmwiki]\ncommand = "cmd"\nargs = ["/c", "npx", "-y", "obsidian-llmwiki-mcp"]\nstartup_timeout_sec = 60\n\n[mcp_servers.llmwiki.env]\nLLMWIKI_ROOT = "${ROOT}"\n`,
     global: `# Codex CLI (0.153 실측)\ncodex mcp add llmwiki -- llmwiki-mcp --root '${ROOT}'\n# npx 콜드스타트가 기본 기동 타임아웃(10s)을 넘으면 ~/.codex/config.toml 에 startup_timeout_sec 을 추가한다\n# (\`codex mcp add\` 의 -c 플래그로는 지정할 수 없다 — command 없는 테이블이 먼저 만들어져 "invalid transport" 로 실패)\n[mcp_servers.llmwiki]\ncommand = "llmwiki-mcp"\nargs = ["--root", "${ROOT}"]\nstartup_timeout_sec = 60\n`,
   },
   agy: {
-    default: `# agy — 플래그는 name 앞, '-'로 시작하는 인자 앞에 '--'\nagy mcp add llmwiki -- npx -y llmwiki-mcp --root ${RQ}\n`,
+    default: `# agy — 플래그는 name 앞, '-'로 시작하는 인자 앞에 '--'\nagy mcp add llmwiki -- npx -y obsidian-llmwiki-mcp --root ${RQ}\n`,
     windows: `# agy (Windows) — 플래그는 name 앞, 경로는 env 로 전달\n${WIN_NOTE}agy mcp add -e ${ENVQ} llmwiki -- ${CMDW}\n`,
     global: `# agy — 플래그는 name 앞, '-'로 시작하는 인자 앞에 '--'\nagy mcp add llmwiki -- llmwiki-mcp --root ${RQ}\n`,
   },
   gemini: {
     default:
       `# Gemini CLI — ~/.gemini/settings.json 의 mcpServers 에 병합\n` +
-      `{\n  "mcpServers": {\n    "llmwiki": {\n      "command": "npx",\n      "args": [\n        "-y",\n        "llmwiki-mcp",\n        "--root",\n        ${RJ}\n      ]\n    }\n  }\n}\n`,
+      `{\n  "mcpServers": {\n    "llmwiki": {\n      "command": "npx",\n      "args": [\n        "-y",\n        "obsidian-llmwiki-mcp",\n        "--root",\n        ${RJ}\n      ]\n    }\n  }\n}\n`,
     windows:
       `# Gemini CLI — ~/.gemini/settings.json 의 mcpServers 에 병합\n` +
-      `{\n  "mcpServers": {\n    "llmwiki": {\n      "command": "cmd",\n      "args": [\n        "/c",\n        "npx",\n        "-y",\n        "llmwiki-mcp"\n      ],\n      "env": {\n        "LLMWIKI_ROOT": ${RJ}\n      }\n    }\n  }\n}\n`,
+      `{\n  "mcpServers": {\n    "llmwiki": {\n      "command": "cmd",\n      "args": [\n        "/c",\n        "npx",\n        "-y",\n        "obsidian-llmwiki-mcp"\n      ],\n      "env": {\n        "LLMWIKI_ROOT": ${RJ}\n      }\n    }\n  }\n}\n`,
     global:
       `# Gemini CLI — ~/.gemini/settings.json 의 mcpServers 에 병합\n` +
       `{\n  "mcpServers": {\n    "llmwiki": {\n      "command": "llmwiki-mcp",\n      "args": [\n        "--root",\n        ${RJ}\n      ]\n    }\n  }\n}\n`,
@@ -59,10 +59,10 @@ const EXPECTED: Record<ClientName, Record<Variant, string>> = {
   cursor: {
     default:
       `# cursor — ~/.cursor/mcp.json 의 mcpServers 에 병합 (env 블록으로 볼트 경로 전달)\n` +
-      `{\n  "mcpServers": {\n    "llmwiki": {\n      "command": "npx",\n      "args": [\n        "-y",\n        "llmwiki-mcp"\n      ],\n      "env": {\n        "LLMWIKI_ROOT": ${RJ}\n      }\n    }\n  }\n}\n`,
+      `{\n  "mcpServers": {\n    "llmwiki": {\n      "command": "npx",\n      "args": [\n        "-y",\n        "obsidian-llmwiki-mcp"\n      ],\n      "env": {\n        "LLMWIKI_ROOT": ${RJ}\n      }\n    }\n  }\n}\n`,
     windows:
       `# cursor — ~/.cursor/mcp.json 의 mcpServers 에 병합 (env 블록으로 볼트 경로 전달)\n` +
-      `{\n  "mcpServers": {\n    "llmwiki": {\n      "command": "cmd",\n      "args": [\n        "/c",\n        "npx",\n        "-y",\n        "llmwiki-mcp"\n      ],\n      "env": {\n        "LLMWIKI_ROOT": ${RJ}\n      }\n    }\n  }\n}\n`,
+      `{\n  "mcpServers": {\n    "llmwiki": {\n      "command": "cmd",\n      "args": [\n        "/c",\n        "npx",\n        "-y",\n        "obsidian-llmwiki-mcp"\n      ],\n      "env": {\n        "LLMWIKI_ROOT": ${RJ}\n      }\n    }\n  }\n}\n`,
     global:
       `# cursor — ~/.cursor/mcp.json 의 mcpServers 에 병합 (env 블록으로 볼트 경로 전달)\n` +
       `{\n  "mcpServers": {\n    "llmwiki": {\n      "command": "llmwiki-mcp",\n      "args": [],\n      "env": {\n        "LLMWIKI_ROOT": ${RJ}\n      }\n    }\n  }\n}\n`,
@@ -70,10 +70,10 @@ const EXPECTED: Record<ClientName, Record<Variant, string>> = {
   windsurf: {
     default:
       `# windsurf — ~/.codeium/windsurf/mcp_config.json 의 mcpServers 에 병합 (env 블록으로 볼트 경로 전달)\n` +
-      `{\n  "mcpServers": {\n    "llmwiki": {\n      "command": "npx",\n      "args": [\n        "-y",\n        "llmwiki-mcp"\n      ],\n      "env": {\n        "LLMWIKI_ROOT": ${RJ}\n      }\n    }\n  }\n}\n`,
+      `{\n  "mcpServers": {\n    "llmwiki": {\n      "command": "npx",\n      "args": [\n        "-y",\n        "obsidian-llmwiki-mcp"\n      ],\n      "env": {\n        "LLMWIKI_ROOT": ${RJ}\n      }\n    }\n  }\n}\n`,
     windows:
       `# windsurf — ~/.codeium/windsurf/mcp_config.json 의 mcpServers 에 병합 (env 블록으로 볼트 경로 전달)\n` +
-      `{\n  "mcpServers": {\n    "llmwiki": {\n      "command": "cmd",\n      "args": [\n        "/c",\n        "npx",\n        "-y",\n        "llmwiki-mcp"\n      ],\n      "env": {\n        "LLMWIKI_ROOT": ${RJ}\n      }\n    }\n  }\n}\n`,
+      `{\n  "mcpServers": {\n    "llmwiki": {\n      "command": "cmd",\n      "args": [\n        "/c",\n        "npx",\n        "-y",\n        "obsidian-llmwiki-mcp"\n      ],\n      "env": {\n        "LLMWIKI_ROOT": ${RJ}\n      }\n    }\n  }\n}\n`,
     global:
       `# windsurf — ~/.codeium/windsurf/mcp_config.json 의 mcpServers 에 병합 (env 블록으로 볼트 경로 전달)\n` +
       `{\n  "mcpServers": {\n    "llmwiki": {\n      "command": "llmwiki-mcp",\n      "args": [],\n      "env": {\n        "LLMWIKI_ROOT": ${RJ}\n      }\n    }\n  }\n}\n`,
@@ -81,10 +81,10 @@ const EXPECTED: Record<ClientName, Record<Variant, string>> = {
   "claude-desktop": {
     default:
       `# claude-desktop — claude_desktop_config.json 의 mcpServers 에 병합 (env 블록으로 볼트 경로 전달)\n` +
-      `{\n  "mcpServers": {\n    "llmwiki": {\n      "command": "npx",\n      "args": [\n        "-y",\n        "llmwiki-mcp"\n      ],\n      "env": {\n        "LLMWIKI_ROOT": ${RJ}\n      }\n    }\n  }\n}\n`,
+      `{\n  "mcpServers": {\n    "llmwiki": {\n      "command": "npx",\n      "args": [\n        "-y",\n        "obsidian-llmwiki-mcp"\n      ],\n      "env": {\n        "LLMWIKI_ROOT": ${RJ}\n      }\n    }\n  }\n}\n`,
     windows:
       `# claude-desktop — claude_desktop_config.json 의 mcpServers 에 병합 (env 블록으로 볼트 경로 전달)\n` +
-      `{\n  "mcpServers": {\n    "llmwiki": {\n      "command": "cmd",\n      "args": [\n        "/c",\n        "npx",\n        "-y",\n        "llmwiki-mcp"\n      ],\n      "env": {\n        "LLMWIKI_ROOT": ${RJ}\n      }\n    }\n  }\n}\n`,
+      `{\n  "mcpServers": {\n    "llmwiki": {\n      "command": "cmd",\n      "args": [\n        "/c",\n        "npx",\n        "-y",\n        "obsidian-llmwiki-mcp"\n      ],\n      "env": {\n        "LLMWIKI_ROOT": ${RJ}\n      }\n    }\n  }\n}\n`,
     global:
       `# claude-desktop — claude_desktop_config.json 의 mcpServers 에 병합 (env 블록으로 볼트 경로 전달)\n` +
       `{\n  "mcpServers": {\n    "llmwiki": {\n      "command": "llmwiki-mcp",\n      "args": [],\n      "env": {\n        "LLMWIKI_ROOT": ${RJ}\n      }\n    }\n  }\n}\n`,
@@ -92,10 +92,10 @@ const EXPECTED: Record<ClientName, Record<Variant, string>> = {
   vscode: {
     default:
       `# VS Code (Copilot) — .vscode/mcp.json 은 최상위 키가 "servers"\n` +
-      `{\n  "servers": {\n    "llmwiki": {\n      "type": "stdio",\n      "command": "npx",\n      "args": [\n        "-y",\n        "llmwiki-mcp",\n        "--root",\n        ${RJ}\n      ]\n    }\n  }\n}\n`,
+      `{\n  "servers": {\n    "llmwiki": {\n      "type": "stdio",\n      "command": "npx",\n      "args": [\n        "-y",\n        "obsidian-llmwiki-mcp",\n        "--root",\n        ${RJ}\n      ]\n    }\n  }\n}\n`,
     windows:
       `# VS Code (Copilot) — .vscode/mcp.json 은 최상위 키가 "servers"\n` +
-      `{\n  "servers": {\n    "llmwiki": {\n      "type": "stdio",\n      "command": "cmd",\n      "args": [\n        "/c",\n        "npx",\n        "-y",\n        "llmwiki-mcp"\n      ],\n      "env": {\n        "LLMWIKI_ROOT": ${RJ}\n      }\n    }\n  }\n}\n`,
+      `{\n  "servers": {\n    "llmwiki": {\n      "type": "stdio",\n      "command": "cmd",\n      "args": [\n        "/c",\n        "npx",\n        "-y",\n        "obsidian-llmwiki-mcp"\n      ],\n      "env": {\n        "LLMWIKI_ROOT": ${RJ}\n      }\n    }\n  }\n}\n`,
     global:
       `# VS Code (Copilot) — .vscode/mcp.json 은 최상위 키가 "servers"\n` +
       `{\n  "servers": {\n    "llmwiki": {\n      "type": "stdio",\n      "command": "llmwiki-mcp",\n      "args": [\n        "--root",\n        ${RJ}\n      ]\n    }\n  }\n}\n`,
@@ -134,21 +134,21 @@ describe("P2-26 print-config snapshots", () => {
     }
   }
 
-  it("P2-26 --windows 는 cmd /c npx -y llmwiki-mcp 래핑", () => {
+  it("P2-26 --windows 는 cmd /c npx -y obsidian-llmwiki-mcp 래핑", () => {
     for (const client of JSON_CLIENTS) {
       const j = parseJsonBody(printConfig(opts(client, "windows")));
       const entry = j[client === "vscode" ? "servers" : "mcpServers"].llmwiki;
       expect(entry.command).toBe("cmd");
-      expect(entry.args as string[]).toEqual(["/c", "npx", "-y", "llmwiki-mcp"]);
+      expect(entry.args as string[]).toEqual(["/c", "npx", "-y", "obsidian-llmwiki-mcp"]);
     }
     for (const client of SHELL_CLIENTS) {
       const out = printConfig(opts(client, "windows"));
       expect(out, client).toContain(` -- ${CMDW}\n`);
-      // 토큰 단위(cmdq 인용 제거) = cmd /c npx -y llmwiki-mcp — 경로 토큰은 없다
+      // 토큰 단위(cmdq 인용 제거) = cmd /c npx -y obsidian-llmwiki-mcp — 경로 토큰은 없다
       const [cmdLine] = bodyLines(out).filter((ln) => ln.includes(" -- cmd "));
       expect(cmdLine, client).toBeDefined();
       const tokens = cmdLine.split(" -- ")[1].split(" ").map((t) => t.replace(/^"|"$/g, ""));
-      expect(tokens, client).toEqual(["cmd", "/c", "npx", "-y", "llmwiki-mcp"]);
+      expect(tokens, client).toEqual(["cmd", "/c", "npx", "-y", "obsidian-llmwiki-mcp"]);
       // WIN_NOTE 주석은 명령 줄 바로 앞
       const lines = out.split("\n");
       expect(lines[lines.indexOf(cmdLine) - 1], client).toBe(WIN_NOTE.trimEnd());
@@ -174,7 +174,7 @@ describe("P2-26 print-config snapshots", () => {
     expect(printConfig(opts("agy", "windows"))).toContain(`agy mcp add -e ${ENVQ} llmwiki -- `);
     // codex TOML: args 에 경로 없음 + env 테이블
     const codex = printConfig(opts("codex", "windows"));
-    expect(codex).toContain(`args = ["/c", "npx", "-y", "llmwiki-mcp"]\n`);
+    expect(codex).toContain(`args = ["/c", "npx", "-y", "obsidian-llmwiki-mcp"]\n`);
     expect(codex).toContain(`[mcp_servers.llmwiki.env]\nLLMWIKI_ROOT = ${RJ}\n`);
   });
 
@@ -209,7 +209,7 @@ describe("P2-26 print-config snapshots", () => {
     // 경로에 `'` 가 있으면 `'\''` 로 분해
     expect(printConfig({ client: "claude-code", root: "a'b c" })).toContain(`--root 'a'\\''b c'`);
     // 단순 경로는 인용하지 않는다
-    expect(printConfig({ client: "agy", root: "/opt/vault_1.2" })).toBe(`# agy — 플래그는 name 앞, '-'로 시작하는 인자 앞에 '--'\nagy mcp add llmwiki -- npx -y llmwiki-mcp --root /opt/vault_1.2\n`);
+    expect(printConfig({ client: "agy", root: "/opt/vault_1.2" })).toBe(`# agy — 플래그는 name 앞, '-'로 시작하는 인자 앞에 '--'\nagy mcp add llmwiki -- npx -y obsidian-llmwiki-mcp --root /opt/vault_1.2\n`);
   });
 
   it("P2-26 JSON 계열은 주석 제거 후 유효 JSON — vscode 는 servers, 나머지는 mcpServers", () => {
@@ -223,7 +223,7 @@ describe("P2-26 print-config snapshots", () => {
     }
     const vs = parseJsonBody(printConfig(opts("vscode", "default"))).servers.llmwiki;
     expect(vs.type).toBe("stdio");
-    expect(vs.args).toEqual(["-y", "llmwiki-mcp", "--root", ROOT]);
+    expect(vs.args).toEqual(["-y", "obsidian-llmwiki-mcp", "--root", ROOT]);
   });
 
   it("P2-26 cursor/windsurf/claude-desktop 은 env.LLMWIKI_ROOT 로 경로 전달(args 에 --root 없음)", () => {
@@ -251,7 +251,7 @@ describe("P2-26 print-config snapshots", () => {
     expect(out).toContain("[mcp_servers.llmwiki]\n");
     expect(out).toMatch(/^command = "npx"$/m);
     expect(out).toMatch(/^startup_timeout_sec = 60$/m);
-    expect(out).toContain(`args = ["-y", "llmwiki-mcp", "--root", ${RJ}]`);
+    expect(out).toContain(`args = ["-y", "obsidian-llmwiki-mcp", "--root", ${RJ}]`);
     expect(out).not.toContain("[mcp_servers.llmwiki.env]");
     const w = printConfig(opts("codex", "windows"));
     expect(w).toMatch(/^\[mcp_servers\.llmwiki\.env\]$/m);

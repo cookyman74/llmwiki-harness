@@ -86,7 +86,7 @@ describe("review: --windows never places the vault path in command args", () => 
       const cmdLines = bodyLines(out).filter((ln) => ln.includes(" -- cmd "));
       expect(cmdLines.length, client).toBe(1);
       const afterSep = cmdLines[0].split(" -- ")[1];
-      expect(afterSep, client).toBe("cmd /c npx -y llmwiki-mcp"); // 경로 토큰 없음
+      expect(afterSep, client).toBe("cmd /c npx -y obsidian-llmwiki-mcp"); // 경로 토큰 없음
       expect(afterSep, client).not.toContain("whoami");
       // 경로는 오직 인용된 --env/-e 값 안에만 — `&` 가 벗은 채 셸에 닿지 않는다
       expect(cmdLines[0], client).toMatch(/(--env|-e) "LLMWIKI_ROOT=C:\\wiki\\safe&whoami" /); // 원래 정규식의 \\\\ 는 백슬래시 2개를 요구해 절대 매치되지 않았다(마스킹된 단언)
@@ -100,12 +100,12 @@ describe("review: --windows never places the vault path in command args", () => 
       const j = JSON.parse(bodyLines(printConfig({ client, root: WIN_ROOT, windows: true })).join("\n")) as Record<string, Record<string, { command: string; args: string[]; env: Record<string, string> }>>;
       const e = j[client === "vscode" ? "servers" : "mcpServers"].llmwiki;
       expect(e.command, client).toBe("cmd");
-      expect(e.args, client).toEqual(["/c", "npx", "-y", "llmwiki-mcp"]);
+      expect(e.args, client).toEqual(["/c", "npx", "-y", "obsidian-llmwiki-mcp"]);
       expect(e.env.LLMWIKI_ROOT, client).toBe(WIN_ROOT);
     }
     // codex TOML: args 에 경로 없음, env 테이블에만
     const codex = printConfig({ client: "codex", root: WIN_ROOT, windows: true });
-    expect(codex).toContain(`args = ["/c", "npx", "-y", "llmwiki-mcp"]\n`);
+    expect(codex).toContain(`args = ["/c", "npx", "-y", "obsidian-llmwiki-mcp"]\n`);
     expect(codex).toContain(`[mcp_servers.llmwiki.env]\nLLMWIKI_ROOT = ${JSON.stringify(WIN_ROOT)}\n`);
   });
 
@@ -155,7 +155,7 @@ describe("review: POSIX shell quoting (shq)", () => {
   });
 
   it("shq quotes anything outside the safe alphabet (space, ;, &, |, Hangul) and leaves safe tokens bare", () => {
-    for (const s of ["/opt/vault_1.2", "npx", "-y", "llmwiki-mcp", "mcp_servers.llmwiki.startup_timeout_sec=60", "a:b+c"]) expect(shq(s), s).toBe(s);
+    for (const s of ["/opt/vault_1.2", "npx", "-y", "obsidian-llmwiki-mcp", "mcp_servers.llmwiki.startup_timeout_sec=60", "a:b+c"]) expect(shq(s), s).toBe(s);
     for (const s of ["a b", "a;b", "a&b", "a|b", "a>b", "개인", "a'b", "", "*", "~", "$HOME", "`id`", "a!b"]) {
       const q = shq(s);
       expect(q.startsWith("'") && q.endsWith("'"), JSON.stringify(s)).toBe(true);

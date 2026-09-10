@@ -39,7 +39,7 @@
 ### 왜 Node.js인가 (FastMCP/Python 대신)
 
 - MCP 공식 SDK(`@modelcontextprotocol/sdk`)가 TypeScript 우선. 문서·예제 최다.
-- 배포·등록이 한 줄: `npx -y llmwiki-mcp --root <볼트>`. Claude Code(`claude mcp add`)·Codex(`config.toml`)·Claude Desktop·Cursor 설정에 그대로 복사 가능.
+- 배포·등록이 한 줄: `npx -y obsidian-llmwiki-mcp --root <볼트>`. Claude Code(`claude mcp add`)·Codex(`config.toml`)·Claude Desktop·Cursor 설정에 그대로 복사 가능.
 - 사용자 주력 스택이 node.js/typescript.
 - 대안 A(Node가 python3를 자식 프로세스로 호출)는 "npx만으로 끝"이라는 배포 동기를 절반만 채움 → **순수 TS 포팅(대안 B)** 채택. 구현 2벌의 드리프트는 **패리티 테스트**로 막는다(§5).
 
@@ -51,7 +51,7 @@
 
 1. **① 리트리벌 포팅**: search/expand/rerank/pack을 TypeScript로 **바이트 동일 출력**으로 포팅한다. 랭킹 규칙(정렬 키·MEMBER_K=6·BM25 k1=1.5/b=0.75·tier 규칙)은 Python 원본이 정본이며 변경하지 않는다. 정본 Python에는 **결정성 확보 목적의 수정 1건만** 허용한다(디렉터리 순회 정렬·개행 고정 — 설계서 §7). 랭킹 결과에 영향 없음을 실 볼트로 확인한다.
 2. **② MCP stdio 서버 — 자기서술(self-describing)**: 읽기 전용 도구 4개를 노출한다 — `wiki_search`, `wiki_expand`, `wiki_pack`, `wiki_read_page`. 라우팅 규약(단일조회=seed·사실=rerank11+팩·절차=full-read)과 신뢰도 병기·stale 회피 규약을 **서버 안에 3중으로** 심는다: 서버 `instructions` + 각 도구 description 한 줄 + `wiki_expand` 출력의 `suggested_next`. 클라이언트가 `instructions`를 모델에 안 보여줘도(Codex·Gemini 미확인) 나머지 둘로 동작해야 한다. **클라이언트 측 규칙 파일은 선택사항**이다.
-3. **③ 배포 — 사전 설치물 0개**: npm 공개 패키지 `llmwiki-mcp`(미등록 확인 2026-09-07). `npx -y llmwiki-mcp`가 유일한 실행 경로이며 Node 외 의존 없음. README에 **클라이언트 8종 등록 매트릭스**(§1 표) + Windows `cmd /c` + Codex 타임아웃 + `npm i -g` 대안 수록. `npx llmwiki-mcp print-config --client <이름> --root <볼트>`가 해당 클라이언트용 명령/JSON/TOML 스니펫을 **출력만** 한다(사용자 설정 파일에 쓰지 않음 — 그 파일들은 타 서버의 비밀키를 담고 있어 자동 편집이 위험).
+3. **③ 배포 — 사전 설치물 0개**: npm 공개 패키지 `obsidian-llmwiki-mcp`(원안 `llmwiki-mcp` 는 2026-09-11 publish 시 npm 유사도 정책 — 기존 `llm-wiki-mcp` 와 구두점만 다름 — 으로 거부되어 변경. 실행 명령은 그대로 `llmwiki-mcp`). `npx -y obsidian-llmwiki-mcp`가 유일한 실행 경로이며 Node 외 의존 없음. README에 **클라이언트 8종 등록 매트릭스**(§1 표) + Windows `cmd /c` + Codex 타임아웃 + `npm i -g` 대안 수록. `npx obsidian-llmwiki-mcp print-config --client <이름> --root <볼트>`가 해당 클라이언트용 명령/JSON/TOML 스니펫을 **출력만** 한다(사용자 설정 파일에 쓰지 않음 — 그 파일들은 타 서버의 비밀키를 담고 있어 자동 편집이 위험).
 4. **④ 클라이언트 규칙 스니펫(선택)**: 하나의 원본 `templates/mcp-client-guide.md`(라우팅 표 + 규약 3줄, 20줄 이내)에서 Claude Code 스킬·Codex `AGENTS.md`·Gemini `GEMINI.md`·Cursor rules 조각을 파생. 없어도 동작해야 하며(②), 있으면 라우팅 준수율을 올리는 보조 수단.
 5. **⑤ 패리티 CI**: 합성 픽스처 볼트에 대해 Python·Node 출력을 diff. 불일치 시 CI 실패.
 
@@ -96,7 +96,7 @@
 | 클라이언트가 라우팅을 무시하고 `wiki_read_page`를 남발 | 토큰 낭비(v0.8.3 이전으로 회귀) | 3중 심기(instructions·description·`suggested_next`) + 준수율 지표로 측정. 미달 시 규칙 스니펫 배포 |
 | JSON Schema 호환 — Gemini 등이 `anyOf`·`$ref`·`preprocess` 유니온을 거부/오해 | 특정 클라이언트에서 도구 등록 실패 | 스키마를 **부분집합으로 제한**(object·array·string·integer·boolean·enum·description·min/max만). 입력 내결함성은 스키마가 아닌 런타임 정규화로 |
 | description 토큰 비용 — 클라이언트가 매 턴 도구 설명을 모델에 실음 | 4도구 × 장문 = 상시 오버헤드 | 도구별 description ≤ 500자(영문 먼저·한국어 한 줄). 전체 라우팅 표는 `instructions`에만 |
-| npx 콜드스타트 > 클라이언트 기동 타임아웃 | Codex(기본 10s)에서 첫 실행 실패 | 의존성 2개(sdk·zod)로 패키지 최소화, README에 `startup_timeout_sec` 상향과 `npm i -g llmwiki-mcp` 대안 명시 |
+| npx 콜드스타트 > 클라이언트 기동 타임아웃 | Codex(기본 10s)에서 첫 실행 실패 | 의존성 2개(sdk·zod)로 패키지 최소화, README에 `startup_timeout_sec` 상향과 `npm i -g obsidian-llmwiki-mcp` 대안 명시 |
 | Windows에서 `npx` 직접 실행 불가(JSON 설정형 클라이언트) | Cursor·Claude Desktop Windows 사용자 실패 | `print-config`가 Windows에서 `cmd /c npx …` 형태로 출력, README 명시 |
 | 경로 인용 — 볼트 경로에 공백·한글(`OneDrive-개인`) | 셸/TOML/JSON 인용 실수 | `print-config`가 인용 처리, `LLMWIKI_ROOT` env 대안(env 블록 지원 클라이언트) |
 | stdout 오염 — `console.log`·Node 경고가 JSON-RPC 스트림에 섞임 | 모든 클라이언트에서 프로토콜 파손 | stdout은 transport 전용, 진단은 stderr. ESLint `no-console` + smoke에서 stdout 순수성 검사 |
@@ -112,8 +112,8 @@
 - [ ] 심볼릭 링크 유출 테스트: 픽스처 밖 임시 볼트에 `wiki/leak.md → 외부 파일` 링크를 두고 `wiki_search`·`wiki_pack`·`wiki_read_page` 모두 내용 미노출 확인
 - [ ] **클라이언트 매트릭스 5종 필수 통과** — Claude Code(타 프로젝트)·Codex·Gemini CLI·agy·Cursor 각각: 등록 1줄 → 사실브리핑 질의 1건 성공(호출 순서 로그 첨부). + Claude Desktop·VS Code·Windows 중 1종
 - [ ] 규칙 스니펫 없는 상태에서 라우팅 준수 지표(§3) 달성
-- [ ] `npx llmwiki-mcp print-config --client <8종>` 출력이 각 클라이언트 실제 포맷과 일치(Windows 출력 포함), 파일 쓰기 없음
+- [ ] `npx obsidian-llmwiki-mcp print-config --client <8종>` 출력이 각 클라이언트 실제 포맷과 일치(Windows 출력 포함), 파일 쓰기 없음
 - [ ] Codex 콜드스타트 실측·`startup_timeout_sec` 권고값 README 기재
 - [ ] `templates/mcp-client-guide.md` + 파생 4종(Claude 스킬·AGENTS.md·GEMINI.md·Cursor rules) 작성, 볼트 `wiki-query` 라우팅 표와 동일
 - [ ] README에 설치·등록 매트릭스·도구 계약·한계 수록, CLAUDE.md 변경 이력 행 추가
-- [ ] npm publish `llmwiki-mcp@0.1.0` (public), `npm pack --dry-run`에 콘텐츠 파일 0개
+- [ ] npm publish `obsidian-llmwiki-mcp@0.1.0` (public), `npm pack --dry-run`에 콘텐츠 파일 0개

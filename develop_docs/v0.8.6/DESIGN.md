@@ -11,7 +11,7 @@
              / Claude Desktop / VS Code / 자체 에이전트(MCP 클라이언트 SDK)]
         │  MCP (stdio, JSON-RPC) — 클라이언트마다 등록 문법만 다르고 서버는 동일 바이너리
         ▼
-  npx -y llmwiki-mcp --root <볼트>         ← tools/llmwiki-mcp (TypeScript, 읽기 전용, 의존 2개)
+  npx -y obsidian-llmwiki-mcp --root <볼트>         ← tools/llmwiki-mcp (TypeScript, 읽기 전용, 의존 2개)
         │
         ├─ wiki_search    ── search.ts   (search.py --files 포팅: lexical 파일 랭킹)
         ├─ wiki_expand    ── expand.ts   (scope-expand expand: seed→1홉→MoC Top-K [→BM25 rerank])
@@ -228,38 +228,38 @@ for mode in [search --files, expand, expand --rerank 11, pack]:
 
 ```bash
 # Claude Code — 사용자 범위(모든 프로젝트에서 보임)
-claude mcp add --scope user llmwiki -- npx -y llmwiki-mcp --root "<VAULT>"
+claude mcp add --scope user llmwiki -- npx -y obsidian-llmwiki-mcp --root "<VAULT>"
 
 # Codex CLI (0.153.4 실측 — P3) — `-c mcp_servers.<name>.startup_timeout_sec=60` 을 add 와 함께 주면
 #   "invalid transport" 로 **실패**한다(-c 가 command 없는 테이블을 먼저 만든다). 플래그 없이 등록하고
 #   타임아웃이 필요하면 config.toml 을 편집한다. npx 콜드스타트 실측 5.8s(캐시 비운 tarball) < 기본 10s.
-codex mcp add llmwiki -- npx -y llmwiki-mcp --root "<VAULT>"
+codex mcp add llmwiki -- npx -y obsidian-llmwiki-mcp --root "<VAULT>"
 #   또는 ~/.codex/config.toml
 #   [mcp_servers.llmwiki]
 #   command = "npx"
-#   args = ["-y", "llmwiki-mcp", "--root", "<VAULT>"]
+#   args = ["-y", "obsidian-llmwiki-mcp", "--root", "<VAULT>"]
 #   startup_timeout_sec = 60
 
 # agy — 플래그는 name 앞, '-'로 시작하는 인자 앞에 '--'
-agy mcp add llmwiki -- npx -y llmwiki-mcp --root "<VAULT>"
+agy mcp add llmwiki -- npx -y obsidian-llmwiki-mcp --root "<VAULT>"
 
-# Gemini CLI — ~/.gemini/settings.json (또는 gemini mcp add llmwiki npx -y llmwiki-mcp --root "<VAULT>")
+# Gemini CLI — ~/.gemini/settings.json (또는 gemini mcp add llmwiki npx -y obsidian-llmwiki-mcp --root "<VAULT>")
 { "mcpServers": { "llmwiki": { "command": "npx",
-    "args": ["-y", "llmwiki-mcp", "--root", "<VAULT>"] } } }
+    "args": ["-y", "obsidian-llmwiki-mcp", "--root", "<VAULT>"] } } }
 
 # Cursor(~/.cursor/mcp.json) · Windsurf(~/.codeium/windsurf/mcp_config.json) · Claude Desktop(claude_desktop_config.json)
-{ "mcpServers": { "llmwiki": { "command": "npx", "args": ["-y", "llmwiki-mcp"],
+{ "mcpServers": { "llmwiki": { "command": "npx", "args": ["-y", "obsidian-llmwiki-mcp"],
     "env": { "LLMWIKI_ROOT": "<VAULT>" } } } }        # env 블록 지원 → 경로 인용 문제 회피
 
 # VS Code (Copilot) — .vscode/mcp.json 은 최상위 키가 "servers"
 { "servers": { "llmwiki": { "type": "stdio", "command": "npx",
-    "args": ["-y", "llmwiki-mcp", "--root", "<VAULT>"] } } }
+    "args": ["-y", "obsidian-llmwiki-mcp", "--root", "<VAULT>"] } } }
 
 # Windows — JSON 설정형 클라이언트는 npx 직접 실행 불가 → cmd 래핑
-{ "command": "cmd", "args": ["/c", "npx", "-y", "llmwiki-mcp", "--root", "<VAULT>"] }
+{ "command": "cmd", "args": ["/c", "npx", "-y", "obsidian-llmwiki-mcp", "--root", "<VAULT>"] }
 
 # 콜드스타트·타임아웃 회피 대안 — 전역 설치 후 직접 실행
-npm i -g llmwiki-mcp   →   command: "llmwiki-mcp", args: ["--root", "<VAULT>"]
+npm i -g obsidian-llmwiki-mcp   →   command: "llmwiki-mcp", args: ["--root", "<VAULT>"]
 
 # 자체 에이전트 — MCP 클라이언트 SDK(stdio). LangGraph는 langchain-mcp-adapters로 동일 command/args 지정
 ```
@@ -277,7 +277,7 @@ npm i -g llmwiki-mcp   →   command: "llmwiki-mcp", args: ["--root", "<VAULT>"]
 - **단계**: P1 포팅+단위+패리티 → P2 MCP 서버+`--once`+Inspector 확인 → P3 README·스킬·npm publish 0.1.0·CI → P4(후속) 캐시 v1.1.
 - **버전**: 하네스 태그 `v0.11.0`(외부 인터페이스 신설). npm은 독립 semver, 랭킹 규칙 변경 시 npm minor + 하네스 동시 태그.
 - **동기 규칙(CLAUDE.md에 추가)**: "리트리벌 규칙 변경은 Python 스크립트·TS 포팅·패리티 픽스처 3점을 한 PR에서 함께 고친다."
-- **롤백**(P3 실증): 클라이언트별 제거 → `claude mcp remove <name>` · `codex mcp remove <name>` · `agy mcp remove <name>` · JSON 설정형(gemini·cursor·windsurf·claude-desktop·vscode)은 해당 `mcpServers`/`servers` 블록 삭제. 전역 설치는 `npm rm -g llmwiki-mcp`. 규칙 스니펫은 `~/.claude/skills/llmwiki-query/`·`~/.agents/skills/llmwiki-query/`·`~/.codex/AGENTS.md`·`~/.gemini/GEMINI.md`·`.cursor/rules/llmwiki.mdc` 에서 제거. 배포 철회는 `npm deprecate llmwiki-mcp@<ver> "<사유>"`(설치는 계속 가능하되 경고), 되돌릴 수 없는 삭제는 72시간 내 `npm unpublish` 뿐이므로 원칙적으로 deprecate + 다음 patch 로 대응. 볼트 하네스는 영향 없음(Python 경로 독립).
+- **롤백**(P3 실증): 클라이언트별 제거 → `claude mcp remove <name>` · `codex mcp remove <name>` · `agy mcp remove <name>` · JSON 설정형(gemini·cursor·windsurf·claude-desktop·vscode)은 해당 `mcpServers`/`servers` 블록 삭제. 전역 설치는 `npm rm -g obsidian-llmwiki-mcp`. 규칙 스니펫은 `~/.claude/skills/llmwiki-query/`·`~/.agents/skills/llmwiki-query/`·`~/.codex/AGENTS.md`·`~/.gemini/GEMINI.md`·`.cursor/rules/llmwiki.mdc` 에서 제거. 배포 철회는 `npm deprecate obsidian-llmwiki-mcp@<ver> "<사유>"`(설치는 계속 가능하되 경고), 되돌릴 수 없는 삭제는 72시간 내 `npm unpublish` 뿐이므로 원칙적으로 deprecate + 다음 patch 로 대응. 볼트 하네스는 영향 없음(Python 경로 독립).
 
 ## 10. 열린 결정 (착수 전 확정)
 

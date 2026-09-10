@@ -24,8 +24,8 @@ branch: feat/mcp-p3-release (base: feat/mcp-p2-server, PR #21 위에 스택)
 
 ### B. npm 배포
 - [x] P3-07 `npm pack --dry-run` — `dist/`, `README.md`, `package.json`, `LICENSE` 외 0개, 콘텐츠 `.md` 0개 ✅ 2026-09-09 — `npm pack --dry-run`: **19파일**(dist/16 + package.json + README.md + LICENSE), 콘텐츠·테스트·픽스처 0. LICENSE 추가·`files` 화이트리스트·repository·homepage·bugs·keywords 메타. **리뷰 BLOCKER 반영**: `dist/` 는 gitignore 라 clean clone 에서 publish 하면 빈 패키지가 되므로 `prepack: npm run build`·`prepublishOnly: npm run check` 훅 추가 — `rm -rf dist` 후 `npm pack --dry-run` 이 dist/cli.js 를 포함함을 실증
-- [ ] P3-08 (승인 대기 — 비가역·공개 배포) `npm publish --access public` `llmwiki-mcp@0.1.0` — 2FA·소유 계정 확인, publish 로그 보관 ⏸ 2026-09-10 — **사용자 결정: PR #19~#23 main 머지, 태그·npm publish 는 보류**(버전 전략 미정 — 한 번에 0.1.0 vs 계획대로 0.1.0→0.2.0). 릴리즈 노트 초안은 유지
-- [ ] P3-09 (P3-08 이후) 새 셸에서 `npx -y llmwiki-mcp@0.1.0 --selftest --root <볼트>` 성공(캐시 없는 상태 → 콜드스타트 시간 기록)
+- [ ] P3-08 (승인 대기 — 비가역·공개 배포) `npm publish --access public` `obsidian-llmwiki-mcp@0.1.0` — 2FA·소유 계정 확인, publish 로그 보관 ⏸ 2026-09-10 — **사용자 결정: PR #19~#23 main 머지, 태그·npm publish 는 보류**(버전 전략 미정 — 한 번에 0.1.0 vs 계획대로 0.1.0→0.2.0). 릴리즈 노트 초안은 유지
+- [ ] P3-09 (P3-08 이후) 새 셸에서 `npx -y obsidian-llmwiki-mcp@0.1.0 --selftest --root <볼트>` 성공(캐시 없는 상태 → 콜드스타트 시간 기록)
 - [x] P3-10 콜드스타트·웜스타트 시간 → README 의 Codex `startup_timeout_sec` 권고값 확정 ✅ 2026-09-09 — 로컬 tarball 전역 설치 실측: `--selftest` median 146ms, **MCP initialize 왕복 median 123ms**(Codex 기본 타임아웃 10s 대비 80배 여유). 전역 설치 시 `startup_timeout_sec` 상향 불필요 — npx 콜드스타트에만 해당하므로 README 는 '넘으면 config.toml 로' 안내 유지
 
 ### C. 클라이언트 매트릭스 실측 (필수 5종)
@@ -66,7 +66,7 @@ branch: feat/mcp-p3-release (base: feat/mcp-p2-server, PR #21 위에 스택)
 - [x] P3-34+ (P3 외부리뷰 p3-m1·m2) README 인용 설명을 클라이언트 형태별(POSIX 셸·JSON 설정·Windows 셸)로 분리하고, `--windows` 의 유형별 변화와 검증 범위를 명시 ✅ 2026-09-10 확인 — `tools/llmwiki-mcp/README.md` 의 "How the vault path is escaped" 표(3형태)와 "Windows (`--windows`)" 표의 Verification status 열("Syntax fixed by unit tests only"). 반영은 P3 커밋에 이미 있었고 항목만 없었다
 
 ## 산출물
-- 패키지 README, `templates/mcp-client-guide.md` + 파생 4종, npm `llmwiki-mcp@0.1.0`, `evidence/P3-*.log`, `P3-routing.csv`, 태그 v0.11.0
+- 패키지 README, `templates/mcp-client-guide.md` + 파생 4종, npm `obsidian-llmwiki-mcp@0.1.0`, `evidence/P3-*.log`, `P3-routing.csv`, 태그 v0.11.0
 
 ## 완료 기준 (DoD)
 - [x] 클라이언트 실측 ✅ 2026-09-09 — **CLI 가 있는 3종(Claude Code·Codex·agy) 등록+질의 15회 실측 완료**, 로그·CSV·요약 보관. Gemini CLI 는 이 환경에 미설치·Cursor 는 GUI 라 실사용 불가 → 설정 스니펫을 실제 파일과 dry-merge 로 검증. ⏸ 잔여 2종은 P3-32+

@@ -9,7 +9,7 @@
 볼트 안 Claude Code만 쓰던 위키 리트리벌을 **MCP stdio 서버**로 노출했다. Codex CLI·Gemini CLI·agy·Cursor·Windsurf·Claude Desktop·VS Code, 그리고 직접 만든 MCP 클라이언트가 같은 위키를 읽는다. 설치는 등록 한 줄이고 사전 설치물은 Node ≥20 하나뿐이다.
 
 ```bash
-npx llmwiki-mcp print-config --client codex --root /path/to/llmwiki.obsidian   # 등록 스니펫 생성
+npx obsidian-llmwiki-mcp print-config --client codex --root /path/to/llmwiki.obsidian   # 등록 스니펫 생성
 ```
 
 도구 4개: `wiki_expand`(진입점 — seed→관계 1홉→MoC, 옵션 BM25 rerank) · `wiki_pack`(claims·confidence·status·관계 팩) · `wiki_read_page`(전문 read) · `wiki_search`(fallback). 읽기 전용이며 파일링·인제스트·lint는 볼트 자체 하네스가 계속 담당한다.
@@ -69,7 +69,7 @@ macOS NFD 파일명과 NFC 질의가 어긋날 수 있다(Python 정본과 바�
 
 ## 그 밖에 남은 작업
 
-- `npm publish --access public` (조건 해소 + 승인 후) → `npx -y llmwiki-mcp@0.1.0` 재검증
+- `npm publish --access public` (조건 해소 + 승인 후) → `npx -y obsidian-llmwiki-mcp@0.1.0` 재검증
 - `git tag v0.11.0`
 - **다음 버전(npm 0.2.0, P4) 호환성 변경 예고**: 0.1.0 은 모든 도구가 `structuredContent`+`outputSchema` 를 반환하지만, 0.2.0 부터 **기본은 텍스트만**이다(Claude Code 가 structuredContent 를 모델에 넘겨 입력이 2~4배가 되던 문제, P4-27+). 구조화 필드가 필요한 클라이언트는 서버 환경에 `LLMWIKI_STRUCTURED=1` 을 넣으면 0.1.0 과 같은 계약을 받는다.
 - P4: 프로세스 내 mtime 캐시 — **구현 완료, 이 태그에는 포함되지 않는다**(브랜치 `feat/mcp-p4-lex-index`, 이 스택 위). v0.11.0·npm 0.1.0 은 P3 끝(`f098497` 계열)에서 끊고, 캐시는 다음 태그·npm 0.2.0 으로 나간다. P4 가 머지된 뒤에 0.1.0 을 publish 하면 캐시가 섞여 들어가므로 **publish 시점의 커밋을 확인할 것**(P4-11)

@@ -39,9 +39,15 @@ function checkRoot(root: string): string {
   return root;
 }
 
-/** 실행 명령 토큰. global 이면 [llmwiki-mcp], 아니면 [npx, -y, llmwiki-mcp]. Windows 는 cmd /c 래핑. */
+/** npm 패키지 이름 — package.json `name` 과 같아야 한다(테스트가 고정). 원안 `llmwiki-mcp` 는 npm 유사도 정책(기존
+ *  `llm-wiki-mcp`)으로 거부되어 2026-09-11 변경. */
+export const PKG_NAME = "obsidian-llmwiki-mcp";
+/** 설치되는 실행 명령(package.json `bin`). 패키지 이름과 달라도 bin 이 하나라 `npx -y <PKG_NAME>` 이 이 명령을 실행한다. */
+export const BIN_NAME = "llmwiki-mcp";
+
+/** 실행 명령 토큰. global 이면 [BIN_NAME], 아니면 [npx, -y, PKG_NAME]. Windows 는 cmd /c 래핑. */
 function commandTokens(o: PrintConfigOptions): { command: string; args: string[] } {
-  const base = o.global ? { command: "llmwiki-mcp", args: [] as string[] } : { command: "npx", args: ["-y", "llmwiki-mcp"] };
+  const base = o.global ? { command: BIN_NAME, args: [] as string[] } : { command: "npx", args: ["-y", PKG_NAME] };
   if (o.windows) return { command: "cmd", args: ["/c", base.command, ...base.args] };
   return base;
 }

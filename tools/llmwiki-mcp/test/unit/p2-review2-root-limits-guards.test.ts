@@ -464,13 +464,13 @@ describe("agy r2 MINOR-4: `print-config` anywhere in argv wins over `--once`; pa
     // 정상 print-config 는 어느 위치에서든 exit 0 (root 존재 검증 없음)
     const ok = run(["--client", "agy", "--root", "/nonexistent/v", "print-config"]);
     expect(ok.status, ok.stderr).toBe(0);
-    expect(ok.stdout).toContain("agy mcp add llmwiki -- npx -y llmwiki-mcp --root /nonexistent/v\n");
+    expect(ok.stdout).toContain("agy mcp add llmwiki -- npx -y obsidian-llmwiki-mcp --root /nonexistent/v\n");
   });
 
   it.skipIf(!HAVE_DIST)("`--root --windows`: '--windows' is consumed as the root VALUE (not a flag) — POSIX output with `--root --windows`, no cmd wrapping", () => {
     const r = run(["print-config", "--client", "agy", "--root", "--windows"]);
     expect(r.status, r.stderr).toBe(0);
-    expect(r.stdout).toContain("agy mcp add llmwiki -- npx -y llmwiki-mcp --root --windows\n");
+    expect(r.stdout).toContain("agy mcp add llmwiki -- npx -y obsidian-llmwiki-mcp --root --windows\n");
     expect(r.stdout).not.toContain("cmd");
     expect(r.stdout).not.toContain("LLMWIKI_ROOT=");
     // `--name --global`: '--global' 은 이름 값으로 소비된 뒤 SERVER_NAME_RE 에서 거부된다(플래그로 해석되지 않았다는 증거)
