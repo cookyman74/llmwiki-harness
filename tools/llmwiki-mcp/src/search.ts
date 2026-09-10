@@ -5,6 +5,7 @@
  * 정렬 `(-distinct, -total, slug)` (slug 는 코드포인트 순). `top` 은 상한(fill 아님).
  */
 import path from "node:path";
+import { cacheEnabled, readTexts, snapshot } from "./cache.js";
 import { cmpCodePoint, countSub, field, frontmatter, pyLower, pyStrip, readAll, walkMd } from "./vault.js";
 
 export interface SearchRow {
@@ -27,7 +28,8 @@ export async function filesMode(
   const terms = normalizeTerms(rawTerms);
   const base = path.join(root, "wiki");
   const files = await walkMd(base);
-  const texts = await readAll(files);
+  // 그래프 경로와 같은 텍스트 캐시를 쓴다(P4-06) — 순회·경계 검사는 호출마다 그대로 수행한 뒤에 붙는다.
+  const texts = cacheEnabled() ? await readTexts(base, files, await snapshot(base, files)) : await readAll(files);
   const rows: SearchRow[] = [];
   files.forEach((f, i) => {
     const text = texts[i];

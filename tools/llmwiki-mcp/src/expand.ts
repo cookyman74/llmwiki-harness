@@ -4,6 +4,7 @@
  * seed(tier0) ∪ 1홉 이웃(tier1, lexical 필터: distinct>0 또는 seed 2개+ 참조) ∪ MoC 멤버 소프트 Top-K(tier2, 필터 우회).
  * 최종 정렬 `(tier, -lex, -refs, slug)` → `[:max]`.
  */
+import { derived } from "./cache.js";
 import type { Graph, Node } from "./graph.js";
 import { cmpCodePoint, countSub, pyLower } from "./vault.js";
 
@@ -17,9 +18,14 @@ export interface ExpandRow {
 
 export const TIER_NAME: Record<number, string> = { 0: "seed", 1: "1hop", 2: "moc" };
 
+/** lex 용 haystack — term 과 무관해서 호출 사이에 재사용한다(P4-13+). 캐시 off 면 매번 계산. */
+export function lexHay(d: Node): string {
+  return derived(d, "hay", () => pyLower(d.text + "\n" + d.aliases));
+}
+
 /** Python `lex_score(d, terms)` → (distinct, total). terms 는 소문자. */
 export function lexScore(d: Node, terms: string[]): [number, number] {
-  const hay = pyLower(d.text + "\n" + d.aliases);
+  const hay = lexHay(d);
   let distinct = 0;
   let total = 0;
   for (const t of terms) {

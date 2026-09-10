@@ -1,0 +1,198 @@
+/**
+ * P4-07 · P4-08 · P4-10 — 프로세스 내 mtime 캐시.
+ *
+ * 캐시의 위험은 속도가 아니라 **낡은 결과**다. 그래서 여기서는 전부 "파일을 실제로 바꾸고 다음 호출을
+ * 확인"하는 방식으로만 판정한다(P4 교훈 1). 다루는 축:
+ *   ① 적중(같은 스냅샷 → 같은 Graph 객체)  ② 수정·추가·삭제  ③ mtime 만 변경(클라우드 동기)
+ *   ④ 타임스탬프 해상도 안의 수정(같은 크기·같은 mtime)  ⑤ `--root` 전환  ⑥ `LLMWIKI_CACHE=0`
+ *   ⑦ 심볼릭 링크 스킵·경계(P2-17)가 캐시 경로에서도 유지되는가  ⑧ 캐시 on/off 출력 동일
+ */
+import { mkdtemp, mkdir, rm, stat, symlink, utimes, writeFile } from "node:fs/promises";
+import os from "node:os";
+import path from "node:path";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { cacheStats, resetCache } from "../../src/cache.js";
+import { buildGraph } from "../../src/graph.js";
+import { runExpand, runSearch } from "../../src/once.js";
+
+let root = "";
+const wiki = (): string => path.join(root, "wiki");
+
+/** 파일을 쓰고 mtime 을 과거로 돌린다 — "방금 수정" 창(FRESH_WINDOW_MS) 밖으로 보내 캐시 대상이 되게. */
+async function write(rel: string, text: string, ageSec = 30): Promise<void> {
+  const p = path.join(wiki(), rel);
+  await mkdir(path.dirname(p), { recursive: true });
+  await writeFile(p, text, "utf8");
+  const t = Date.now() / 1000 - ageSec;
+  await utimes(p, t, t);
+}
+
+beforeEach(async () => {
+  delete process.env.LLMWIKI_CACHE;
+  resetCache();
+  root = await mkdtemp(path.join(os.tmpdir(), "llmwiki-p4-cache-"));
+  await write("L3/a.md", "---\ntype: concept\n---\n# A\nalpha 본문. [[b]]\n");
+  await write("L3/b.md", "---\ntype: concept\n---\n# B\nbeta 본문. [[a]]\n");
+});
+
+afterEach(async () => {
+  delete process.env.LLMWIKI_CACHE;
+  resetCache();
+  if (root) await rm(root, { recursive: true, force: true });
+});
+
+describe("P4-06 적중·무효화", () => {
+  it("스냅샷이 같으면 같은 Graph 객체를 돌려준다(파생 메모까지 재사용)", async () => {
+    const g1 = await buildGraph(wiki());
+    const g2 = await buildGraph(wiki());
+    expect(g2).toBe(g1);
+    expect(cacheStats().hasGraph).toBe(true);
+    expect(cacheStats().cachedFiles).toBe(2);
+  });
+
+  it("P4-07 파일 수정 → 다음 호출에 반영되고 그래프 객체가 교체된다", async () => {
+    const g1 = await buildGraph(wiki());
+    expect(g1.nodes.get("a")?.text).toContain("alpha 본문");
+    await write("L3/a.md", "---\ntype: concept\n---\n# A\n감마 본문. [[b]]\n");
+    const g2 = await buildGraph(wiki());
+    expect(g2).not.toBe(g1);
+    expect(g2.nodes.get("a")?.text).toContain("감마 본문");
+    expect(g2.nodes.get("a")?.text).not.toContain("alpha");
+  });
+
+  it("P4-07 파일 추가·삭제가 다음 호출에 반영된다(인링크 포함 통째 재구성)", async () => {
+    await buildGraph(wiki());
+    await write("L3/c.md", "---\ntype: fact\n---\n# C\n[[a]]\n");
+    const g2 = await buildGraph(wiki());
+    expect([...g2.nodes.keys()].sort()).toEqual(["a", "b", "c"]);
+    expect(g2.nodes.get("a")?.in.has("c")).toBe(true); // 인링크가 새로 만들어졌다
+
+    await rm(path.join(wiki(), "L3/c.md"));
+    const g3 = await buildGraph(wiki());
+    expect([...g3.nodes.keys()].sort()).toEqual(["a", "b"]);
+    expect(g3.nodes.get("a")?.in.has("c")).toBe(false);
+    expect(cacheStats().cachedFiles).toBe(2); // 삭제된 파일의 텍스트도 캐시에서 사라진다
+  });
+
+  it("P4-07 mtime 만 바뀌고 내용이 같으면(클라우드 동기) 결과가 그대로다", async () => {
+    const g1 = await buildGraph(wiki());
+    const p = path.join(wiki(), "L3/a.md");
+    const t = Date.now() / 1000 - 5;
+    await utimes(p, t, t);
+    const g2 = await buildGraph(wiki());
+    expect(g2).not.toBe(g1); // 스냅샷이 달라 다시 만든다(낡은 결과보다 재구성을 택한다)
+    expect(g2.nodes.get("a")?.text).toBe(g1.nodes.get("a")?.text);
+  });
+
+  it("P4-07 타임스탬프 해상도 안(2s)의 수정은 캐시하지 않아 낡은 결과가 나오지 않는다", async () => {
+    // 방금 쓴 파일 = mtime 이 현재. 스냅샷이 저장되지 않으므로 다음 호출은 반드시 다시 읽는다.
+    const p = path.join(wiki(), "L3/a.md");
+    await writeFile(p, "---\ntype: concept\n---\n# A\nAAAA\n", "utf8");
+    const st = await stat(p);
+    await buildGraph(wiki());
+    expect(cacheStats().hasGraph).toBe(false); // 저장 자체를 하지 않았다
+
+    // 같은 크기·같은 mtime 으로 내용만 교체 — 스냅샷으로는 구분할 수 없는 최악의 경우.
+    await writeFile(p, "---\ntype: concept\n---\n# A\nBBBB\n", "utf8");
+    await utimes(p, st.mtime, st.mtime);
+    const g2 = await buildGraph(wiki());
+    expect(g2.nodes.get("a")?.text).toContain("BBBB");
+  });
+
+  it("P4-04 `--root` 가 바뀌면 이전 볼트의 캐시를 쓰지 않는다", async () => {
+    await buildGraph(wiki());
+    const other = await mkdtemp(path.join(os.tmpdir(), "llmwiki-p4-other-"));
+    try {
+      const op = path.join(other, "wiki", "L3");
+      await mkdir(op, { recursive: true });
+      await writeFile(path.join(op, "z.md"), "---\ntype: fact\n---\n# Z\nzeta\n", "utf8");
+      const t = Date.now() / 1000 - 30;
+      await utimes(path.join(op, "z.md"), t, t);
+      const g = await buildGraph(path.join(other, "wiki"));
+      expect([...g.nodes.keys()]).toEqual(["z"]);
+      expect(cacheStats().root).toBe(path.resolve(path.join(other, "wiki")));
+      // 원래 볼트로 돌아오면 그쪽을 다시 만든다
+      const back = await buildGraph(wiki());
+      expect([...back.nodes.keys()].sort()).toEqual(["a", "b"]);
+    } finally {
+      await rm(other, { recursive: true, force: true });
+    }
+  });
+});
+
+describe("P4-05 LLMWIKI_CACHE=0", () => {
+  it("끄면 아무것도 저장하지 않고 매번 새 그래프를 만든다", async () => {
+    process.env.LLMWIKI_CACHE = "0";
+    const g1 = await buildGraph(wiki());
+    const g2 = await buildGraph(wiki());
+    expect(g2).not.toBe(g1);
+    expect(cacheStats().hasGraph).toBe(false);
+    expect(cacheStats().cachedFiles).toBe(0);
+    expect([...g2.nodes.keys()].sort()).toEqual([...g1.nodes.keys()].sort());
+  });
+
+  it("P4-08 캐시 on/off 출력이 같다(expand·rerank·search, 수정 전후 모두)", async () => {
+    const opts = { root, topSeed: 6, max: 15, rerank: 0 };
+    const rr = { ...opts, rerank: 11 };
+    const runBoth = async (): Promise<{ on: string[]; off: string[] }> => {
+      process.env.LLMWIKI_CACHE = "0";
+      resetCache();
+      const off = [await runExpand(["alpha"], opts), await runExpand(["alpha"], rr), await runSearch(["alpha"], root, 8)];
+      delete process.env.LLMWIKI_CACHE;
+      resetCache();
+      const first = [await runExpand(["alpha"], opts), await runExpand(["alpha"], rr), await runSearch(["alpha"], root, 8)];
+      // 두 번째 라운드는 캐시 적중 상태에서 — 적중이 출력을 바꾸지 않는지까지 본다
+      const on = [await runExpand(["alpha"], opts), await runExpand(["alpha"], rr), await runSearch(["alpha"], root, 8)];
+      expect(on).toEqual(first);
+      return { on, off };
+    };
+
+    const before = await runBoth();
+    expect(before.on).toEqual(before.off);
+
+    await write("L3/b.md", "---\ntype: concept\n---\n# B\nalpha 도 들어간 본문. [[a]]\n");
+    const after = await runBoth();
+    expect(after.on).toEqual(after.off);
+    expect(after.on).not.toEqual(before.on); // 수정이 실제로 반영됐다
+  });
+});
+
+describe("P4-10 보안 규칙이 캐시 경로에서도 유지된다", () => {
+  it("캐시 적중 상태에서 심볼릭 링크를 넣어도 여전히 건너뛴다(경계 밖 내용 미노출)", async () => {
+    const outside = path.join(root, "outside-secret.md");
+    await writeFile(outside, "---\ntype: fact\n---\n# OUTSIDE\nTOPSECRET-CANARY\n", "utf8");
+    const g1 = await buildGraph(wiki());
+    expect(cacheStats().hasGraph).toBe(true);
+
+    let linked = true;
+    try {
+      await symlink(outside, path.join(wiki(), "L3", "leak.md"));
+    } catch {
+      linked = false; // 권한 없는 환경(Windows 등) — 링크를 못 만들면 이 단언은 건너뛴다
+    }
+    if (!linked) return;
+
+    const g2 = await buildGraph(wiki());
+    expect([...g2.nodes.keys()].sort()).toEqual(["a", "b"]);
+    expect(JSON.stringify([...g2.nodes.values()])).not.toContain("TOPSECRET-CANARY");
+    expect(g2).toBe(g1); // 링크는 순회에서 빠지므로 스냅샷도 그대로 = 적중이 정상
+  });
+
+  it("실제 파일이 심볼릭 링크로 교체되면 목록이 바뀌어 그래프를 다시 만든다", async () => {
+    const outside = path.join(root, "outside2.md");
+    await writeFile(outside, "---\ntype: fact\n---\n# O2\nCANARY-2\n", "utf8");
+    await buildGraph(wiki());
+    const target = path.join(wiki(), "L3", "b.md");
+    await rm(target);
+    let linked = true;
+    try {
+      await symlink(outside, target);
+    } catch {
+      linked = false;
+    }
+    if (!linked) return;
+    const g2 = await buildGraph(wiki());
+    expect([...g2.nodes.keys()]).toEqual(["a"]);
+    expect(JSON.stringify([...g2.nodes.values()])).not.toContain("CANARY-2");
+  });
+});

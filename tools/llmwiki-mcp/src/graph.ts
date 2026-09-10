@@ -5,6 +5,7 @@
  * 아니면 alias2slug[lower] 로 정규화. 자기 링크 제외. 중복 slug 는 walk 순서상 **마지막 승**(dict 대입).
  */
 import path from "node:path";
+import { cacheEnabled, getGraph, readTexts, setGraph, snapshot } from "./cache.js";
 import { field, frontmatter, parseAliases, pyLower, pyStrip, readAll, walkMd, type MdFile } from "./vault.js";
 
 /** Python `LINK = re.compile(r"(?<!!)\[\[([^\]|#]+)")` — `![[…]]` 임베드 제외. #7 */
@@ -23,10 +24,24 @@ export interface Graph {
   alias2slug: Map<string, string>;
 }
 
-/** `files` 를 주면 walkMd 를 생략한다(read_page 가 이미 순회한 목록 재사용 — 리뷰: 이중 순회). */
+/** `files` 를 주면 walkMd 를 생략한다(read_page 가 이미 순회한 목록 재사용 — 리뷰: 이중 순회).
+ *
+ * 순회·경계 검사 뒤에 프로세스 내 mtime 캐시가 붙는다(P4-06). 스냅샷이 같으면 **같은 Graph 객체**를
+ * 그대로 돌려주고(파생 메모까지 함께 재사용), 다르면 바뀐 파일만 다시 읽어 그래프를 통째로 다시 만든다.
+ * `LLMWIKI_CACHE=0` 이면 stat 스캔도 하지 않고 예전 경로(readAll)로 간다. */
 export async function buildGraph(base: string, files?: MdFile[]): Promise<Graph> {
   files ??= await walkMd(base);
-  const texts = await readAll(files);
+  if (!cacheEnabled()) return assemble(files, await readAll(files));
+  const snap = await snapshot(base, files);
+  const hit = getGraph(base, snap);
+  if (hit) return hit;
+  const G = assemble(files, await readTexts(base, files, snap));
+  setGraph(base, snap, G);
+  return G;
+}
+
+/** 읽어 온 본문으로 그래프를 만든다 — 캐시 유무와 무관한 순수 조립부(정확성: 부분 갱신 없음, P4-03). */
+function assemble(files: MdFile[], texts: string[]): Graph {
   const nodes = new Map<string, Node>();
   const alias2slug = new Map<string, string>();
 

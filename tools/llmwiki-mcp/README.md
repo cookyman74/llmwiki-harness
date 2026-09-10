@@ -297,7 +297,7 @@ Usage:
         <c> = claude-code | codex | gemini | agy | cursor | windsurf | claude-desktop | vscode
   llmwiki-mcp --once <search|expand|pack> <args…> --root <vault>   (same output as the Python scripts)
   llmwiki-mcp --version | --help
-Env: LLMWIKI_ROOT (vault path), LLMWIKI_DEBUG=1 (per-tool timings on stderr)
+Env: LLMWIKI_ROOT (vault path), LLMWIKI_DEBUG=1 (per-tool timings on stderr), LLMWIKI_CACHE=0 (disable the in-process cache)
 ```
 
 - **`--root` / `LLMWIKI_ROOT`** — `--root` wins. The path is `realpath`-normalized; `<root>/wiki` must exist, must be a real directory (not a symlink), and must resolve to exactly `<root>/wiki`. Otherwise the process prints one line to stderr and exits 2, e.g. `vault root required: pass --root <path> or set LLMWIKI_ROOT`.
@@ -321,6 +321,7 @@ Env: LLMWIKI_ROOT (vault path), LLMWIKI_DEBUG=1 (per-tool timings on stderr)
   Integer options follow Python's `int()` strictness — `--top 1.5` is an error, not `1`.
 - **`--version`, `--help`** — print and exit 0.
 - **`LLMWIKI_DEBUG=1`** — per-tool timings on stderr (`[llmwiki] wiki_pack 12ms`). Query terms, slugs, page contents, and the vault path are never logged. stdout stays reserved for JSON-RPC.
+- **`LLMWIKI_CACHE=0`** — turn the in-process cache off (see *Caching* below). Everything then runs the way it did before the cache existed: every call walks, reads and rebuilds. Use it to rule the cache out when results look wrong, or to compare outputs.
 
 ---
 
@@ -355,7 +356,8 @@ Exceeding a vault or pack limit raises a named error rather than silently return
 - **Symlinks inside `wiki/` are skipped entirely**, files and directories alike. Pages reachable only through a symlink are invisible.
 - **OneDrive / iCloud / cloud-on-demand files** can be very slow on first read while they are hydrated. Warm reads are unaffected.
 - **stdio only.** No HTTP/SSE transport, no authentication, no multi-tenant use. It is a local single-user tool.
-- **The graph is rebuilt on every call** (v1 — it matches the Python scripts exactly). Measured on macOS/Apple Silicon with Node 24: ≈31–37 ms for a 309-page vault, ≈50–90 ms for 1,000 pages. Process start-up adds ~110 ms, paid once for a stdio server. An in-process cache is planned but not present.
+- **Every call still walks the vault and re-checks the boundary**; only reading and graph assembly are cached (see *Caching*). Measured on macOS/Apple Silicon with Node 24: a cold call is ≈50 ms for a 309-page vault and ≈190 ms for 1,000 pages; a warm call is ≈9 ms and ≈24 ms. Process start-up adds ~110 ms, paid once for a stdio server.
+- **The cache trusts `(path, mtime, size)`.** A modification that keeps the size identical *and* lands within the filesystem's timestamp resolution would be invisible — so snapshots containing a file modified in the last 2 seconds are never stored, and such calls always re-read. Set `LLMWIKI_CACHE=0` if you want no cache at all.
 - **Rerank scores are floating point.** `Math.log` in V8 and `math.log` in CPython can differ by 1 ULP, so a printed `.1f` score may differ by 0.1 at an exact rounding boundary; parity tests allow ±0.05 on the score column and require exact row order.
 - **`index.md` and `log.md` are out of scope** — they live outside `wiki/`.
 
