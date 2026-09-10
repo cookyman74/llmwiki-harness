@@ -1,0 +1,6 @@
+## concept-alias-target  [concept · conf 0.6 · active]
+- 이 페이지는 slug가 아닌 별칭으로만 링크된다.
+
+## concept-linker  [concept · conf 0.6 · active]
+- 링커 페이지는 별칭 링크·표시 텍스트 링크·섹션 링크를 모두 쓴다.
+

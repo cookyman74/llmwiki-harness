@@ -1,0 +1,3 @@
+## entity-northwind-team  [entity · conf 0.6 · active]
+- (요약) Northwind 팀은 검색 플랫폼의 팀 구성과 운영을 맡는 가상의 조직이다.
+

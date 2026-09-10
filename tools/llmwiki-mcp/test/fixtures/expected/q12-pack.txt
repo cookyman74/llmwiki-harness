@@ -1,0 +1,10 @@
+## concept-evaluation-harness  [concept · conf 0.6 · active]
+- 평가 harness는 골든셋 질의로 recall과 precision을 측정한다.
+
+## concept-reranking  [concept · conf 0.85 · active]
+- rerank는 1차 후보를 질의 관련도로 다시 정렬해 precision을 올린다.
+- Northwind는 BM25 기반 rerank를 top-11로 자른다.
+- 펜스 안 클레임은 claims 추출에 포함된다(정본 비대칭)
+- 관계) uses :: [[concept-vector-index]] (sources: 2, confidence: 0.85)
+- 관계) contradicts :: [[fact-latency-budget-old]]
+

@@ -1,0 +1,6 @@
+## procedure-no-type  [? · conf - · active]
+- frontmatter에 type이 없으면 부모 디렉터리명(L4-procedural)이 type이 된다.
+
+## procedure-deploy-index  [procedure · conf 0.85 · active]
+- 인덱스 배포는 청킹 → 임베딩 → 벡터 인덱스 빌드 → 스모크 질의 순서다.
+

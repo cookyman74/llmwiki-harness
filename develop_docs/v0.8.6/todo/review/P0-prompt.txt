@@ -1,0 +1,26 @@
+너는 외부 감사자다. llmwiki MCP 서버(Node.js 포팅) 프로젝트의 P0(준비) 단계 산출물을 비판적으로 리뷰하라. 저장소는 현재 디렉터리(llmwiki-harness), 브랜치 feat/mcp-p0-prepare.
+
+먼저 읽을 것(맥락):
+- develop_docs/v0.8.6/todo/00-README.md (작업 규칙)
+- develop_docs/v0.8.6/todo/P0-prepare.md (이 단계 체크리스트·DoD)
+- develop_docs/v0.8.6/DESIGN.md §2(패키지 구조), §4(포팅 대응표), §7(패리티·픽스처·Python 수정)
+
+리뷰 대상:
+1. Python 정본 결정성 수정 — `git diff main -- .claude/skills/wiki-lint/scripts/scope-expand.py .claude/skills/wiki-lint/scripts/search.py`
+   기준: 랭킹 규칙·정규식·정렬 키·출력 포맷이 바뀌지 않았는가? 디렉터리 순회 정렬과 stdout newline 고정만인가? 부작용 가능성은?
+   증거: develop_docs/v0.8.6/todo/baseline/P0-diff.txt (실 볼트 수정 전후 20개 출력 diff), P0-queries.txt
+2. 픽스처 볼트 — tools/llmwiki-mcp/test/fixtures/make-fixture.py (생성기 = 정본), 생성 결과 tools/llmwiki-mcp/test/fixtures/vault/
+   기준: DESIGN §7 케이스(BOM, CRLF, 별칭 링크, 이미지 임베드, 펜스 안 가짜 관계, 펜스 안 claim::, non-BMP 본문·slug, claim 없는 페이지, stale/superseded, 중복 slug, 큰 MoC 10+, 한국어 관계 술어, 대문자 질의, type 없는 페이지)를 빠짐없이 덮는가? 각 케이스가 실제로 Python 정본에서 의도한 코드 경로를 타는가(예: 펜스 안 claim이 pack에 포함되고 펜스 안 관계는 제외되는가)? 실 볼트 콘텐츠·개인정보·회사 정보가 섞이지 않았는가? 케이스 간 간섭(한 질의가 여러 케이스를 동시에 건드려 검증력이 떨어지는 곳)은?
+3. 골든셋 — tools/llmwiki-mcp/test/fixtures/queries.json, gen-expected.py, expected/*.txt (48개)
+   기준: 12질의가 케이스를 고르게 덮는가? Python 정본으로 재현 가능한가(`python3 gen-expected.py --check`)? rerank 모드 점수 열만 허용오차 대상이라는 규약이 문서화됐는가? 골든셋이 "구현이 통과하기 쉽게" 약화된 곳은?
+4. 스캐폴딩 — tools/llmwiki-mcp/package.json, tsconfig.json, eslint.config.js, src/*.ts(스텁), test/unit/scaffold.test.ts, 저장소 .gitignore·.gitattributes 변경
+   기준: `files` 화이트리스트가 콘텐츠·픽스처 비유출을 보장하는가(`npm pack --dry-run`)? 런타임 의존이 sdk·zod 둘뿐인가? no-console 규칙이 실제로 걸리는가? TypeScript 6의 `types` 기본값 변경 대응(tsconfig `types: ["node"]`)이 적절한가? `.gitattributes`의 CRLF 예외가 정확한 파일만 잡는가?
+5. 체크리스트 무결성 — P0-prepare.md 에서 `[x]`로 표시된 항목이 실제 산출물로 뒷받침되는가? 근거 없이 체크된 항목을 찍어내라.
+
+출력 형식(한국어): 발견 사항을 심각도별로 나열한다.
+- [BLOCKER] 다음 단계(P1) 진입 전 반드시 고쳐야 함
+- [MAJOR] 설계 결함, 고치지 않으면 후회
+- [MINOR] 개선 제안
+각 항목: 위치(파일·줄 또는 절) / 문제 / 근거(가능하면 코드·출력 인용) / 제안. 마지막에 "총평(P1 진입 가능 여부)" 한 단락. 칭찬은 생략하고 문제만 적어라.
+
+제약: 어떤 파일도 생성·수정·삭제하지 마라. 읽기와 분석(스크립트 실행 포함 — 단, 쓰기 없는 명령만)만 수행하고 결과는 응답 텍스트로만 출력하라.

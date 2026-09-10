@@ -1,0 +1,7 @@
+2/10	concept-chunking	concept
+2/2	entity-northwind-search	entity
+2/2	procedure-deploy-index	procedure
+2/2	source-northwind-kickoff	source
+1/2	concept-vector-index	concept
+1/1	query-search-briefing	query
+1/1	search-moc	moc

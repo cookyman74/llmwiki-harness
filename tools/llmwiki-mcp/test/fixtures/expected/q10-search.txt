@@ -1,0 +1,8 @@
+2/15	entity-northwind-search	entity
+2/6	entity-northwind-team	entity
+2/5	query-search-briefing	query
+2/5	search-moc	moc
+2/4	concept-vector-index	concept
+2/4	fact-latency-budget-old	fact
+2/3	concept-chunking	concept
+1/3	fact-latency-budget	fact

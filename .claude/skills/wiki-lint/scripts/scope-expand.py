@@ -19,13 +19,14 @@ Usage:
   mtime 기반 증분 캐시(.graph-cache.json) 필요 — 현 규모(≈180)에선 불필요(YAGNI).
 - index.md·log.md는 root/wiki 밖이라 스코프 제외 → seed 독식 없음(search.py와 동일).
 - claim은 한 줄(`- claim:: …`) 관례. 멀티라인 claim은 위키 규약상 없음.
+- 디렉터리 순회는 `dirs.sort()`로 정렬해 OS 무관 결정성 확보(v0.8.6 P0). 랭킹 규칙 무변경.
 """
 import os
 import re
 import sys
 
 try:
-    sys.stdout.reconfigure(encoding="utf-8")
+    sys.stdout.reconfigure(encoding="utf-8", newline="\n")
     sys.stderr.reconfigure(encoding="utf-8")
 except Exception:
     pass
@@ -34,7 +35,8 @@ LINK = re.compile(r"(?<!!)\[\[([^\]|#]+)")  # 이미지 임베드 ![[...]]는 �
 
 
 def walk_md(base):
-    for dp, _, files in os.walk(base):
+    for dp, dirs, files in os.walk(base):
+        dirs.sort()
         for f in sorted(files):
             if f.endswith(".md"):
                 yield os.path.join(dp, f), f[:-3]
