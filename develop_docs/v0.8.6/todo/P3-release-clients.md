@@ -24,7 +24,7 @@ branch: feat/mcp-p3-release (base: feat/mcp-p2-server, PR #21 위에 스택)
 
 ### B. npm 배포
 - [x] P3-07 `npm pack --dry-run` — `dist/`, `README.md`, `package.json`, `LICENSE` 외 0개, 콘텐츠 `.md` 0개 ✅ 2026-09-09 — `npm pack --dry-run`: **19파일**(dist/16 + package.json + README.md + LICENSE), 콘텐츠·테스트·픽스처 0. LICENSE 추가·`files` 화이트리스트·repository·homepage·bugs·keywords 메타. **리뷰 BLOCKER 반영**: `dist/` 는 gitignore 라 clean clone 에서 publish 하면 빈 패키지가 되므로 `prepack: npm run build`·`prepublishOnly: npm run check` 훅 추가 — `rm -rf dist` 후 `npm pack --dry-run` 이 dist/cli.js 를 포함함을 실증
-- [ ] P3-08 (승인 대기 — 비가역·공개 배포) `npm publish --access public` `llmwiki-mcp@0.1.0` — 2FA·소유 계정 확인, publish 로그 보관
+- [ ] P3-08 (승인 대기 — 비가역·공개 배포) `npm publish --access public` `llmwiki-mcp@0.1.0` — 2FA·소유 계정 확인, publish 로그 보관 ⏸ 2026-09-10 — **사용자 결정: PR #19~#23 main 머지, 태그·npm publish 는 보류**(버전 전략 미정 — 한 번에 0.1.0 vs 계획대로 0.1.0→0.2.0). 릴리즈 노트 초안은 유지
 - [ ] P3-09 (P3-08 이후) 새 셸에서 `npx -y llmwiki-mcp@0.1.0 --selftest --root <볼트>` 성공(캐시 없는 상태 → 콜드스타트 시간 기록)
 - [x] P3-10 콜드스타트·웜스타트 시간 → README 의 Codex `startup_timeout_sec` 권고값 확정 ✅ 2026-09-09 — 로컬 tarball 전역 설치 실측: `--selftest` median 146ms, **MCP initialize 왕복 median 123ms**(Codex 기본 타임아웃 10s 대비 80배 여유). 전역 설치 시 `startup_timeout_sec` 상향 불필요 — npx 콜드스타트에만 해당하므로 README 는 '넘으면 config.toml 로' 안내 유지
 
@@ -50,7 +50,7 @@ branch: feat/mcp-p3-release (base: feat/mcp-p2-server, PR #21 위에 스택)
 - [x] P3-22 볼트 안 Claude Code 에서 기존 Python 경로 질의 1건 정상(회귀 없음) ✅ 2026-09-09 — 볼트에서 `scope-expand.py expand RAG 청킹` 정상(seed 3행 확인) — Python 경로 회귀 없음
 
 ### F. 릴리즈
-- [ ] P3-23 (승인 대기 — 비가역) PR 머지 후 `git tag v0.11.0` + 릴리즈 노트 — 패리티 결과(`--vault` 포함)·클라이언트 매트릭스 결과·콜드스타트 수치·외부리뷰 파일 링크
+- [ ] P3-23 (승인 대기 — 비가역) PR 머지 후 `git tag v0.11.0` + 릴리즈 노트 — 패리티 결과(`--vault` 포함)·클라이언트 매트릭스 결과·콜드스타트 수치·외부리뷰 파일 링크 ⏸ 2026-09-10 — **사용자 결정: PR #19~#23 main 머지, 태그·npm publish 는 보류**(버전 전략 미정 — 한 번에 0.1.0 vs 계획대로 0.1.0→0.2.0). 릴리즈 노트 초안은 유지
 - [x] P3-24 `tests/parity.py --vault` 실행 결과 릴리즈 노트에 1줄 ✅ 2026-09-09 — 릴리즈 노트 초안 `develop_docs/v0.8.6/RELEASE-NOTES-v0.11.0.md` 작성(패리티·CI·성능·클라이언트 실측·외부리뷰·한계·남은 작업). 태그 시 그대로 사용
 - [x] P3-25 롤백 절차 확인 — `claude mcp remove llmwiki` 등 클라이언트별 제거 명령 README 에 수록, npm `deprecate` 절차 기록 ✅ 2026-09-09 — 실제 제거 실증: `claude mcp remove`·`codex mcp remove`·`agy mcp remove` 모두 성공, agy 스킬·codex AGENTS.md 원복, `npm rm -g llmwiki-mcp`(95 packages) 후 바이너리 없음, 3종 모두 등록 0건. README 에 클라이언트별 제거 절차 수록. **DESIGN §9 롤백 절을 보강**(클라이언트 5종+CLI 3종 제거·전역 제거·스니펫 제거 경로·`npm deprecate` 절차와 unpublish 72h 제약)
 
