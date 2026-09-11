@@ -796,7 +796,7 @@ raw 파일 맨 위 스탬프(`ingest_status: done`)를 읽어 인제스트 완�
   | 망각 속도 | `decay.py` STABILITY 딕셔너리 |
   | 승격 임계 | `wiki-consolidate/SKILL.md` (3회/2회) |
 
-- **모든 변경은 `CLAUDE.md`의 "변경 이력" 테이블에 기록** — 하네스가 어떻게 진화했는지 추적, 퇴행 방지.
+- **모든 변경은 [`CHANGELOG.md`](CHANGELOG.md)(하네스 변경 이력)에 기록** — 하네스가 어떻게 진화했는지 추적, 퇴행 방지. (2026-09-11 에 `CLAUDE.md` 에서 분리 — CLAUDE.md 는 현재 규칙만 둔다)
 - **재-myharness:** 큰 아키텍처 변경은 `/myharness:myharness`에 개선안을 넘겨 자동 확장. `update` 인자로 팩토리 정본 변경을 빌드된 하네스에 재전파(사용자 수정 보존).
 
 **튜닝 예시 — 망각을 더 느리게:**
@@ -865,4 +865,4 @@ jq -e '.hooks' .claude/settings.json
 9. Obsidian 그래프 뷰로 위키 형태 브라우징
 ```
 
-> **변경 이력·현재 상태는 항상 `CLAUDE.md`(스키마)와 `log.md`(타임라인)가 정본이다.**
+> **현재 상태는 `CLAUDE.md`(스키마), 하네스 변경 이력은 [`CHANGELOG.md`](CHANGELOG.md), 위키 타임라인은 `log.md` 가 정본이다.**
