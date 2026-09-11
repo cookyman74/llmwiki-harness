@@ -134,7 +134,7 @@ describe("P2-27 CLI --help / --version / exit codes", () => {
     expect(run(["-h"]).stdout).toBe(r.stdout);
   });
 
-  it("P2-27 --version → '<package.json version>\\n' (현재 0.1.0)", () => {
+  it("P2-27 --version → '<package.json version>\\n' (package.json 값과 대조)", () => {
     if (skip()) return;
     const r = run(["--version"]);
     expect(r.status).toBe(0);
