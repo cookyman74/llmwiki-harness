@@ -73,7 +73,7 @@
 - **쓰기 없음.** 파일링·인제스트·lint·MoC 갱신은 볼트 안 `wiki-ops` 전용. 외부 에이전트가 쓰면 `index.md`·`log.md` 정합이 깨진다. 향후 필요해도 별도 PRD.
 - **Python 스크립트 유지.** 볼트 하네스(SessionStart 훅·lint·인제스트)는 계속 Python. Node 패키지는 **외부 노출 전용**. 두 구현의 정본은 Python.
 - **캐시는 v1에서 안 함.** Python과 동일하게 호출마다 그래프 재구성(≈300 페이지 <1s). 서버는 장수 프로세스라 mtime 캐시가 이득이지만 패리티 검증 뒤 v1.1로 미룸(YAGNI).
-  - **(2026-09-10 갱신)** v1.1 캐시는 P4 에서 구현됐다(`feat/mcp-p4-lex-index`, npm 0.2.0 예정 — DESIGN §6). v1(npm 0.1.0·태그 v0.11.0)에는 포함되지 않는다.
+  - **(2026-09-10 갱신)** v1.1 캐시는 P4 에서 구현됐다(DESIGN §6). (2026-09-11 갱신) 첫 공개 `obsidian-llmwiki-mcp@0.1.0` 에 **포함되어** 나갔다 — 0.1.0 과 0.2.0 으로 나누지 않았다.
 - **임베딩·벡터 검색 없음.** lexical+그래프+BM25가 A/B 5라운드로 검증된 정본. 시맨틱은 별건.
 - **원격 노출 없음.** stdio만. HTTP는 인증·볼트 격리 설계가 필요하므로 별건.
 - **OneDrive 제약.** 볼트가 OneDrive 경로라 다른 머신에서 동기화 지연 시 최신 페이지가 안 보일 수 있음. 로컬 머신 단일 사용 전제.
@@ -116,4 +116,4 @@
 - [ ] Codex 콜드스타트 실측·`startup_timeout_sec` 권고값 README 기재
 - [ ] `templates/mcp-client-guide.md` + 파생 4종(Claude 스킬·AGENTS.md·GEMINI.md·Cursor rules) 작성, 볼트 `wiki-query` 라우팅 표와 동일
 - [ ] README에 설치·등록 매트릭스·도구 계약·한계 수록, CLAUDE.md 변경 이력 행 추가
-- [ ] npm publish `obsidian-llmwiki-mcp@0.1.0` (public), `npm pack --dry-run`에 콘텐츠 파일 0개
+- [x] npm publish `obsidian-llmwiki-mcp@0.1.0` (public) ✅ 2026-09-11, `npm pack --dry-run`에 콘텐츠 파일 0개

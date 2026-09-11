@@ -24,8 +24,8 @@ branch: feat/mcp-p3-release (base: feat/mcp-p2-server, PR #21 위에 스택)
 
 ### B. npm 배포
 - [x] P3-07 `npm pack --dry-run` — `dist/`, `README.md`, `package.json`, `LICENSE` 외 0개, 콘텐츠 `.md` 0개 ✅ 2026-09-09 — `npm pack --dry-run`: **19파일**(dist/16 + package.json + README.md + LICENSE), 콘텐츠·테스트·픽스처 0. LICENSE 추가·`files` 화이트리스트·repository·homepage·bugs·keywords 메타. **리뷰 BLOCKER 반영**: `dist/` 는 gitignore 라 clean clone 에서 publish 하면 빈 패키지가 되므로 `prepack: npm run build`·`prepublishOnly: npm run check` 훅 추가 — `rm -rf dist` 후 `npm pack --dry-run` 이 dist/cli.js 를 포함함을 실증
-- [ ] P3-08 (승인 대기 — 비가역·공개 배포) `npm publish --access public` `obsidian-llmwiki-mcp@0.1.0` — 2FA·소유 계정 확인, publish 로그 보관 ⏸ 2026-09-10 — **사용자 결정: PR #19~#23 main 머지, 태그·npm publish 는 보류**(버전 전략 미정 — 한 번에 0.1.0 vs 계획대로 0.1.0→0.2.0). 릴리즈 노트 초안은 유지
-- [ ] P3-09 (P3-08 이후) 새 셸에서 `npx -y obsidian-llmwiki-mcp@0.1.0 --selftest --root <볼트>` 성공(캐시 없는 상태 → 콜드스타트 시간 기록)
+- [x] P3-08 (승인 대기 — 비가역·공개 배포) `npm publish --access public` `obsidian-llmwiki-mcp@0.1.0` — 2FA·소유 계정 확인, publish 로그 보관 ✅ 2026-09-11 — **공개 완료**: `obsidian-llmwiki-mcp@0.1.0`(dist-tag `latest`, MIT, bin `llmwiki-mcp`, 20파일, unpacked 139,216B). 레지스트리 shasum `15eb8eeb04ac91a93ad1dac015e2a0c0b38d2585` = main `5c72f90` 에서 만든 tarball 과 일치. 원안 이름 `llmwiki-mcp` 는 npm 유사도 정책(기존 `llm-wiki-mcp`)으로 403 거부 → PR #24 로 이름 변경 후 공개. 첫 공개에 **P4(캐시·텍스트 전용 기본값)까지 포함**(사용자 결정). 2FA 는 웹 인증으로 사용자가 직접 실행
+- [x] P3-09 (P3-08 이후) 새 셸에서 `npx -y obsidian-llmwiki-mcp@0.1.0 --selftest --root <볼트>` 성공(캐시 없는 상태 → 콜드스타트 시간 기록) ✅ 2026-09-11 — 빈 npm 캐시(`npm_config_cache=<임시>`)로 레지스트리 설치: **콜드 2.82s**(다운로드 포함)·**웜 0.88~0.91s**(3회), selftest 정상(309p·MoC 18). Codex 기본 기동 타임아웃 10s 안 — `startup_timeout_sec` 상향 불필요(README 안내는 유지)
 - [x] P3-10 콜드스타트·웜스타트 시간 → README 의 Codex `startup_timeout_sec` 권고값 확정 ✅ 2026-09-09 — 로컬 tarball 전역 설치 실측: `--selftest` median 146ms, **MCP initialize 왕복 median 123ms**(Codex 기본 타임아웃 10s 대비 80배 여유). 전역 설치 시 `startup_timeout_sec` 상향 불필요 — npx 콜드스타트에만 해당하므로 README 는 '넘으면 config.toml 로' 안내 유지
 
 ### C. 클라이언트 매트릭스 실측 (필수 5종)

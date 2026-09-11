@@ -1,6 +1,6 @@
 # v0.11.0 — llmwiki MCP 서버 (초안, 태그 전)
 
-> **상태(2026-09-10): P0~P4 는 main 에 머지, 태그·npm publish 는 사용자 결정으로 보류.** 버전 전략(첫 공개에 P4 포함 여부)이 정해지면 이 문서를 그에 맞춰 고친다.
+> **상태(2026-09-11): npm `obsidian-llmwiki-mcp@0.1.0` 공개 완료 — P0~P4 전부 포함.** 레지스트리 shasum `15eb8eeb…` = main `5c72f90`. `git tag v0.11.0` 은 아직 만들지 않았다(요청 대기). 원안 이름 `llmwiki-mcp` 는 npm 유사도 정책으로 거부되어 바꿨고, 실행 명령은 그대로 `llmwiki-mcp` 다.
 >
 > **이전 상태: 초안 — 배포 차단.** P3 외부리뷰(2026-09-09, codex)가 "배포 불가"로 판정했고 그 사유가 아래 "배포 전 남은 조건"에 있다. `npm publish` 와 `git tag v0.11.0` 은 그 조건 해소 + 사용자 승인 후에만 진행한다(P3-08·P3-23).
 
@@ -69,7 +69,7 @@ macOS NFD 파일명과 NFC 질의가 어긋날 수 있다(Python 정본과 바�
 
 ## 그 밖에 남은 작업
 
-- `npm publish --access public` (조건 해소 + 승인 후) → `npx -y obsidian-llmwiki-mcp@0.1.0` 재검증
+- ~~`npm publish`~~ — 2026-09-11 완료. `npx -y obsidian-llmwiki-mcp@0.1.0` 콜드 2.82s·웜 0.9s 로 재검증
 - `git tag v0.11.0`
-- **다음 버전(npm 0.2.0, P4) 호환성 변경 예고**: 0.1.0 은 모든 도구가 `structuredContent`+`outputSchema` 를 반환하지만, 0.2.0 부터 **기본은 텍스트만**이다(Claude Code 가 structuredContent 를 모델에 넘겨 입력이 2~4배가 되던 문제, P4-27+). 구조화 필드가 필요한 클라이언트는 서버 환경에 `LLMWIKI_STRUCTURED=1` 을 넣으면 0.1.0 과 같은 계약을 받는다.
-- P4: 프로세스 내 mtime 캐시 — **구현 완료, 이 태그에는 포함되지 않는다**(브랜치 `feat/mcp-p4-lex-index`, 이 스택 위). v0.11.0·npm 0.1.0 은 P3 끝(`f098497` 계열)에서 끊고, 캐시는 다음 태그·npm 0.2.0 으로 나간다. P4 가 머지된 뒤에 0.1.0 을 publish 하면 캐시가 섞여 들어가므로 **publish 시점의 커밋을 확인할 것**(P4-11)
+- 구조화 출력: 0.1.0 은 **기본 텍스트만**이다. structuredContent·outputSchema 가 필요한 클라이언트는 서버 환경에 `LLMWIKI_STRUCTURED=1` 을 넣는다(첫 공개라 호환성 변경 아님).
+- P4: 프로세스 내 mtime 캐시·텍스트 전용 기본값 — **0.1.0 에 포함되어 공개됐다**(서버 2회차 호출 1,000p 164→26ms, 모델 입력 2~4배 → 1배).
