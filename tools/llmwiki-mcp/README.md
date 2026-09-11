@@ -2,7 +2,7 @@
 
 A read-only [MCP](https://modelcontextprotocol.io) server over an Obsidian **LLM wiki v2** vault. It exposes the vault's retrieval pipeline — lexical seeds → 1-hop graph expansion over `[[wikilinks]]` and `## 관계` relations → MoC members → optional BM25 rerank → compact *claim packs* — as four stdio tools, so an agent running anywhere (Claude Code in another repo, Codex CLI, Gemini CLI, agy, Cursor, Windsurf, Claude Desktop, VS Code) can answer from the wiki instead of re-reading it. Retrieval is deterministic and held byte-identical to the vault's Python reference scripts by parity tests; the server makes **no LLM calls**, opens **no network connections**, and contains **no filesystem write APIs**.
 
-한국어: 옵시디언 LLM 위키 볼트를 읽기 전용으로 노출하는 MCP 서버. 볼트 밖 에이전트가 위키를 그대로 쓰게 한다.
+한국어: 옵시디언 LLM 위키 볼트를 읽기 전용으로 노출하는 MCP 서버. 볼트 밖 에이전트가 위키를 그대로 쓰게 한다. **한국어 설치·사용 가이드 → [install-and-usage.ko.md](https://github.com/cookyman74/llmwiki-harness/blob/main/tools/llmwiki-mcp/docs/install-and-usage.ko.md)**
 
 ---
 

@@ -362,7 +362,9 @@ claude mcp add --scope user llmwiki -- npx -y obsidian-llmwiki-mcp --root <볼�
 
 서버는 쓰기 API가 0개다(CI가 `src/`의 `fs.*` 멤버를 허용목록으로 검사). 인제스트·파일링·린트는 계속 볼트 하네스의 일이고, MCP는 **읽기**만 한다.
 
-상세(설치·8종 등록 매트릭스·도구 계약·상한·한계·제거 절차)는 [`tools/llmwiki-mcp/README.md`](tools/llmwiki-mcp/README.md), 설계·검토 기록은 `develop_docs/v0.8.6/`에 있다.
+**설치·사용법(한국어)** — 준비물, 3분 빠른 시작, 클라이언트 8종 등록, 사용법, 환경변수, 문제 해결, 업데이트·제거 — 은 [`tools/llmwiki-mcp/docs/install-and-usage.ko.md`](tools/llmwiki-mcp/docs/install-and-usage.ko.md)에 따로 정리했다. npm 패키지는 [`obsidian-llmwiki-mcp`](https://www.npmjs.com/package/obsidian-llmwiki-mcp)(설치되는 명령은 `llmwiki-mcp`).
+
+영문 상세 레퍼런스(8종 등록 매트릭스·도구 계약·상한·한계·제거 절차)는 [`tools/llmwiki-mcp/README.md`](tools/llmwiki-mcp/README.md), 설계·검토 기록은 `develop_docs/v0.8.6/`에 있다.
 
 ---
 
