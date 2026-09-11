@@ -1,6 +1,6 @@
 {
   "name": "obsidian-llmwiki-mcp",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Read-only MCP server for the llmwiki Obsidian vault (LLM wiki v2) — exposes search, graph expansion, claim packs, and page reads over stdio.",
   "license": "MIT",
   "type": "module",
