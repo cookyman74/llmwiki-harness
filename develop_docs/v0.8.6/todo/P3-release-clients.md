@@ -1,7 +1,7 @@
 # P3 — 배포·클라이언트 매트릭스: README · 규칙 스니펫 · npm publish · 실측 · 릴리즈
 
 ```
-status: done               # not-started | in-progress | review | done — 저장소 작업 완료(CI 6/6). **배포(P3-08·09·23)만 사용자 승인 대기**, 환경 제약 2건(Gemini·Cursor 실사용, Windows 실셸)은 P3-32+·P3-29+ 로 이월: 1차 외부리뷰 BLOCKER 5건 반영 완료, 잔여 미충족(라우팅 지표·Gemini/Cursor 실사용·Windows 실셸·publish 승인)은 문서화. 2차 리뷰 후 done 판정
+status: done               # not-started | in-progress | review | done — 저장소 작업 완료(CI 6/6). **배포(P3-08·09·23) 2026-09-11 완료** — npm `obsidian-llmwiki-mcp@0.1.0`·태그 `v0.11.0`, 환경 제약 2건(Gemini·Cursor 실사용, Windows 실셸)은 P3-32+·P3-29+ 로 이월: 1차 외부리뷰 BLOCKER 5건 반영 완료, 잔여 미충족(라우팅 지표·Gemini/Cursor 실사용·Windows 실셸·publish 승인)은 문서화. 2차 리뷰 후 done 판정
 started: 2026-09-09
 completed:
 external_review: 1차 done → review/P3-codex-2026-09-09.md (배포 불가 판정, BLOCKER 5·MAJOR 6·MINOR 3 전건 판정·반영) · 2차 pending
@@ -50,7 +50,7 @@ branch: feat/mcp-p3-release (base: feat/mcp-p2-server, PR #21 위에 스택)
 - [x] P3-22 볼트 안 Claude Code 에서 기존 Python 경로 질의 1건 정상(회귀 없음) ✅ 2026-09-09 — 볼트에서 `scope-expand.py expand RAG 청킹` 정상(seed 3행 확인) — Python 경로 회귀 없음
 
 ### F. 릴리즈
-- [ ] P3-23 (승인 대기 — 비가역) PR 머지 후 `git tag v0.11.0` + 릴리즈 노트 — 패리티 결과(`--vault` 포함)·클라이언트 매트릭스 결과·콜드스타트 수치·외부리뷰 파일 링크 ⏸ 2026-09-10 — **사용자 결정: PR #19~#23 main 머지, 태그·npm publish 는 보류**(버전 전략 미정 — 한 번에 0.1.0 vs 계획대로 0.1.0→0.2.0). 릴리즈 노트 초안은 유지
+- [x] P3-23 (승인 대기 — 비가역) PR 머지 후 `git tag v0.11.0` + 릴리즈 노트 — 패리티 결과(`--vault` 포함)·클라이언트 매트릭스 결과·콜드스타트 수치·외부리뷰 파일 링크 ⏸ 2026-09-10 — **사용자 결정: PR #19~#23 main 머지, 태그·npm publish 는 보류**(버전 전략 미정 — 한 번에 0.1.0 vs 계획대로 0.1.0→0.2.0). 릴리즈 노트 초안은 유지 ✅ 2026-09-11 — 이 릴리즈 노트 확정 PR 의 main 머지 커밋에 **주석 태그 `v0.11.0`** + GitHub Release(v0.10.0 관례). 노트: `develop_docs/v0.8.6/RELEASE-NOTES-v0.11.0.md`(패리티·클라이언트 매트릭스·콜드스타트·외부리뷰 링크 포함)
 - [x] P3-24 `tests/parity.py --vault` 실행 결과 릴리즈 노트에 1줄 ✅ 2026-09-09 — 릴리즈 노트 초안 `develop_docs/v0.8.6/RELEASE-NOTES-v0.11.0.md` 작성(패리티·CI·성능·클라이언트 실측·외부리뷰·한계·남은 작업). 태그 시 그대로 사용
 - [x] P3-25 롤백 절차 확인 — `claude mcp remove llmwiki` 등 클라이언트별 제거 명령 README 에 수록, npm `deprecate` 절차 기록 ✅ 2026-09-09 — 실제 제거 실증: `claude mcp remove`·`codex mcp remove`·`agy mcp remove` 모두 성공, agy 스킬·codex AGENTS.md 원복, `npm rm -g llmwiki-mcp`(95 packages) 후 바이너리 없음, 3종 모두 등록 0건. README 에 클라이언트별 제거 절차 수록. **DESIGN §9 롤백 절을 보강**(클라이언트 5종+CLI 3종 제거·전역 제거·스니펫 제거 경로·`npm deprecate` 절차와 unpublish 72h 제약)
 
