@@ -193,6 +193,7 @@ git clone <하네스-repo-URL> my-wiki && cd my-wiki
 
 > **업데이트 받기:** `git pull`. 하네스(스킬·에이전트·스크립트)만 갱신되고 내 콘텐츠는 그대로다.
 > **내가 하네스를 고쳐 재배포:** `git add .claude/ CLAUDE.md README.md templates/ && git commit && git push` — 콘텐츠·프로필은 `.gitignore`라 안 올라간다.
+> **볼트 밖(다른 프로젝트·Codex·Cursor 등)에서도 위키를 쓰려면:** MCP 서버를 등록한다 — [설치·사용 가이드](tools/llmwiki-mcp/docs/install-and-usage.ko.md). 볼트에는 아무것도 설치하지 않는다(5-5 참고).
 
 ### 방법 A — myharness 팩토리로 자동 생성 (권장)
 
@@ -352,24 +353,15 @@ exit=1     # 네트워크 호출 0회
 
 지금까지의 구성요소는 모두 **볼트 안에서 도는 Claude Code**를 전제한다. 그런데 위키가 가장 아쉬운 순간은 대개 볼트 밖이다 — 다른 저장소에서 코드를 고치는 중, Codex CLI로 작업하는 중, Cursor에서 문서를 쓰는 중. 그때 위키를 열어 읽는 대신 **에이전트가 위키에서 답을 찾게** 하는 것이 이 서버다.
 
-[`obsidian-llmwiki-mcp`](https://www.npmjs.com/package/obsidian-llmwiki-mcp)는 볼트를 **읽기 전용**으로 여는 MCP 서버다(Node ≥20, 사전 설치물은 Node 하나). 7.5장의 리트리벌(렉시컬 seed → 관계 1홉 확장 → MoC 멤버 → 옵션 BM25 rerank → claims 팩)을 도구 4개로 노출한다 — `wiki_expand`(진입점) · `wiki_pack`(주장·신뢰도 팩) · `wiki_read_page`(전문) · `wiki_search`(fallback). Claude Code(다른 프로젝트)·Codex·Gemini·agy·Cursor·Windsurf·Claude Desktop·VS Code 8종이 같은 서버를 등록해 쓴다.
+> **설치·사용법은 별도 문서에 있다 → [`tools/llmwiki-mcp/docs/install-and-usage.ko.md`](tools/llmwiki-mcp/docs/install-and-usage.ko.md)** (준비물, 3분 빠른 시작, 클라이언트 8종 등록, 사용법, 환경변수, 문제 해결, 업데이트·제거)
 
-```bash
-# 볼트를 제대로 읽는지 먼저 확인 (설치 없이)
-npx -y obsidian-llmwiki-mcp --selftest --root <볼트>
+[`obsidian-llmwiki-mcp`](https://www.npmjs.com/package/obsidian-llmwiki-mcp)는 볼트를 **읽기 전용**으로 여는 MCP 서버다(Node ≥20, 사전 설치물은 Node 하나). 7.5장의 리트리벌(렉시컬 seed → 관계 1홉 확장 → MoC 멤버 → 옵션 BM25 rerank → claims 팩)을 도구 4개로 노출한다 — `wiki_expand`(진입점) · `wiki_pack`(주장·신뢰도 팩) · `wiki_read_page`(전문) · `wiki_search`(fallback). Claude Code(다른 프로젝트)·Codex·Gemini·agy·Cursor·Windsurf·Claude Desktop·VS Code 8종이 같은 서버를 등록해 쓴다. 등록은 클라이언트마다 한 줄이고, 스니펫은 서버의 `print-config` 가 만들어 준다.
 
-# 등록 — 다른 클라이언트는 print-config 가 스니펫을 만들어 준다
-claude mcp add --scope user llmwiki -- npx -y obsidian-llmwiki-mcp --root <볼트>
-npx -y obsidian-llmwiki-mcp print-config --client codex --root <볼트>
-```
-
-등록하면 볼트 밖에서도 이렇게 쓴다 — "위키 기준으로 RAG 청킹과 임베딩 정리해줘. 신뢰도도 적어줘." 에이전트가 `wiki_expand` → `wiki_pack` 순으로 호출해 주장과 `confidence`를 함께 답한다. 절차를 물으면 `wiki_expand` → `wiki_read_page` 로 본문을 읽는다.
-
-**볼트 안에서는 아무것도 바뀌지 않는다.** `wiki-query`·`wiki-ops`는 지금처럼 `search.py`·`scope-expand.py`를 직접 부른다. 서버는 같은 규칙을 옮긴 것이고 두 경로가 같은 결과를 낸다는 것을 패리티 테스트가 지킨다 — 볼트 안이든 밖이든 같은 답을 받는다.
+**볼트 안에서는 아무것도 바뀌지 않는다.** `wiki-query`·`wiki-ops`는 지금처럼 `search.py`·`scope-expand.py`를 직접 부른다. 서버는 같은 규칙을 옮긴 것이고, 두 경로가 같은 결과를 낸다는 것을 패리티 테스트가 지킨다 — 볼트 안이든 밖이든 같은 답을 받는다.
 
 **위키는 읽기만 한다.** 이 서버에는 파일을 쓰는 코드가 없고, 네트워크 연결도 LLM 호출도 하지 않는다. 인제스트·파일링·린트는 계속 볼트 하네스의 일이다. 그래서 설치·제거가 볼트에 아무 흔적을 남기지 않는다.
 
-**설치·사용법(한국어)** — 준비물, 3분 빠른 시작, 클라이언트 8종 등록, 사용법, 환경변수, 문제 해결, 업데이트·제거 — 은 [`tools/llmwiki-mcp/docs/install-and-usage.ko.md`](tools/llmwiki-mcp/docs/install-and-usage.ko.md)에 있다. 영문 상세 레퍼런스(도구 계약·상한·보안 경계)는 [`tools/llmwiki-mcp/README.md`](tools/llmwiki-mcp/README.md), 서버를 고칠 때 지켜야 할 규칙과 설계·검토 기록은 `CLAUDE.md`의 동기 규칙과 `develop_docs/v0.8.6/`에 있다.
+영문 상세 레퍼런스(도구 계약·상한·보안 경계)는 [`tools/llmwiki-mcp/README.md`](tools/llmwiki-mcp/README.md), 서버를 고칠 때 지켜야 할 규칙과 설계·검토 기록은 `CLAUDE.md`의 동기 규칙과 `develop_docs/v0.8.6/`에 있다.
 
 ---
 
