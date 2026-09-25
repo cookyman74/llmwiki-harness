@@ -193,6 +193,7 @@ git clone <하네스-repo-URL> my-wiki && cd my-wiki
 
 > **업데이트 받기:** `git pull`. 하네스(스킬·에이전트·스크립트)만 갱신되고 내 콘텐츠는 그대로다.
 > **내가 하네스를 고쳐 재배포:** `git add .claude/ CLAUDE.md README.md templates/ && git commit && git push` — 콘텐츠·프로필은 `.gitignore`라 안 올라간다.
+> **볼트 밖(다른 프로젝트·Codex·Cursor 등)에서도 위키를 쓰려면:** MCP 서버를 등록한다 — [설치·사용 가이드](tools/llmwiki-mcp/docs/install-and-usage.ko.md). 볼트에는 아무것도 설치하지 않는다(5-5 참고).
 
 ### 방법 A — myharness 팩토리로 자동 생성 (권장)
 
@@ -348,23 +349,19 @@ exit=1     # 네트워크 호출 0회
 
 > **화자 분리는 지원하지 않는다.** Whisper 계열은 "누가 말했는지"를 출력하지 않는다. `meeting-scribe`는 근거(호명·자기소개·역할 명시)가 있을 때만 발언을 귀속하고, 나머지는 화자 없이 기록한다. 심사·평가 회의에서 잘못된 발언 귀속은 내용 누락보다 해롭기 때문이다.
 
-### 5-5. MCP 서버 (`tools/llmwiki-mcp/`) — 볼트 밖 에이전트에서 위키 쓰기
+### 5-5. MCP 서버 (`tools/llmwiki-mcp/`) — 볼트 밖에서 위키 쓰기
 
-지금까지의 구성요소는 모두 **볼트 안에서 도는 Claude Code**를 전제한다. 그런데 위키를 가장 쓰고 싶은 순간은 대개 볼트 밖이다 — 다른 저장소에서 코드를 고치는 중, Codex CLI로 작업하는 중, Cursor에서 문서를 쓰는 중. `tools/llmwiki-mcp/`는 그 간극을 메우는 **읽기 전용 MCP 서버**(Node ≥20, TypeScript)다. 7.5장의 리트리벌 파이프라인(렉시컬 seed → 관계 1홉 확장 → MoC 멤버 → 옵션 BM25 rerank → claims 팩)을 도구 4개(`wiki_expand`·`wiki_pack`·`wiki_read_page`·`wiki_search`)로 노출해, Claude Code(타 프로젝트)·Codex·Gemini·agy·Cursor·Windsurf·Claude Desktop·VS Code 8종이 같은 바이너리를 등록해 쓴다. 등록 스니펫은 `npx obsidian-llmwiki-mcp print-config --client <c> --root <볼트>`가 생성한다.
+지금까지의 구성요소는 모두 **볼트 안에서 도는 Claude Code**를 전제한다. 그런데 위키가 가장 아쉬운 순간은 대개 볼트 밖이다 — 다른 저장소에서 코드를 고치는 중, Codex CLI로 작업하는 중, Cursor에서 문서를 쓰는 중. 그때 위키를 열어 읽는 대신 **에이전트가 위키에서 답을 찾게** 하는 것이 이 서버다.
 
-```bash
-claude mcp add --scope user llmwiki -- npx -y obsidian-llmwiki-mcp --root <볼트>
-```
+> **설치·사용법은 별도 문서에 있다 → [`tools/llmwiki-mcp/docs/install-and-usage.ko.md`](tools/llmwiki-mcp/docs/install-and-usage.ko.md)** (준비물, 3분 빠른 시작, 클라이언트 8종 등록, 사용법, 환경변수, 문제 해결, 업데이트·제거)
 
-**Python 스크립트가 여전히 정본이다.** 볼트 안 `wiki-query`·`wiki-ops`는 무변경 — 계속 `search.py`·`scope-expand.py`를 직접 호출한다. TS는 그 포팅이고, 동일성은 `tests/parity.py`(픽스처 14질의 × 4모드 stdout 바이트 비교 — CI에서 3 OS 매트릭스로 돌고, `--vault`로 실볼트 비교)가 지키고, `tests/parity_fuzz.py`(차등 퍼징, 로컬)가 골든셋 사각지대를 좁힌다. 그래서 규칙 하나가 따라온다:
+[`obsidian-llmwiki-mcp`](https://www.npmjs.com/package/obsidian-llmwiki-mcp)는 볼트를 **읽기 전용**으로 여는 MCP 서버다(Node ≥20, 사전 설치물은 Node 하나). 7.5장의 리트리벌(렉시컬 seed → 관계 1홉 확장 → MoC 멤버 → 옵션 BM25 rerank → claims 팩)을 도구 4개로 노출한다 — `wiki_expand`(진입점) · `wiki_pack`(주장·신뢰도 팩) · `wiki_read_page`(전문) · `wiki_search`(fallback). Claude Code(다른 프로젝트)·Codex·Gemini·agy·Cursor·Windsurf·Claude Desktop·VS Code 8종이 같은 서버를 등록해 쓴다. 등록은 클라이언트마다 한 줄이고, 스니펫은 서버의 `print-config` 가 만들어 준다.
 
-> **리트리벌 규칙을 바꾸면 Python 스크립트·TS 포팅·패리티 픽스처 3점을 한 PR에서 함께 고친다.** 한쪽만 고치면 CI 패리티 잡이 막는다.
+**볼트 안에서는 아무것도 바뀌지 않는다.** `wiki-query`·`wiki-ops`는 지금처럼 `search.py`·`scope-expand.py`를 직접 부른다. 서버는 같은 규칙을 옮긴 것이고, 두 경로가 같은 결과를 낸다는 것을 패리티 테스트가 지킨다 — 볼트 안이든 밖이든 같은 답을 받는다.
 
-서버는 쓰기 API가 0개다(CI가 `src/`의 `fs.*` 멤버를 허용목록으로 검사). 인제스트·파일링·린트는 계속 볼트 하네스의 일이고, MCP는 **읽기**만 한다.
+**위키는 읽기만 한다.** 이 서버에는 파일을 쓰는 코드가 없고, 네트워크 연결도 LLM 호출도 하지 않는다. 인제스트·파일링·린트는 계속 볼트 하네스의 일이다. 그래서 설치·제거가 볼트에 아무 흔적을 남기지 않는다.
 
-**설치·사용법(한국어)** — 준비물, 3분 빠른 시작, 클라이언트 8종 등록, 사용법, 환경변수, 문제 해결, 업데이트·제거 — 은 [`tools/llmwiki-mcp/docs/install-and-usage.ko.md`](tools/llmwiki-mcp/docs/install-and-usage.ko.md)에 따로 정리했다. npm 패키지는 [`obsidian-llmwiki-mcp`](https://www.npmjs.com/package/obsidian-llmwiki-mcp)(설치되는 명령은 `llmwiki-mcp`).
-
-영문 상세 레퍼런스(8종 등록 매트릭스·도구 계약·상한·한계·제거 절차)는 [`tools/llmwiki-mcp/README.md`](tools/llmwiki-mcp/README.md), 설계·검토 기록은 `develop_docs/v0.8.6/`에 있다.
+영문 상세 레퍼런스(도구 계약·상한·보안 경계)는 [`tools/llmwiki-mcp/README.md`](tools/llmwiki-mcp/README.md), 서버를 고칠 때 지켜야 할 규칙과 설계·검토 기록은 `CLAUDE.md`의 동기 규칙과 `develop_docs/v0.8.6/`에 있다.
 
 ---
 
